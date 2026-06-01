@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MES Logistics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/logistics.css">
+    <link rel="stylesheet" href="/static/css/common.css">
+    <script src="/static/js/core/api.js"></script>
+    <script src="/static/js/logistics.js"></script>
+</head>
+
+<body>
+    <nav class="navbar navbar-dark bg-dark px-4">
+        <div class="container-fluid">
+            <span class="navbar-brand">🚚 MES ЛОГИСТИКА</span>
+            <div class="nav nav-tabs" id="logistics-tabs">
+                <button class="nav-link active" data-tab="plans">📋 Планы</button>
+                <button class="nav-link" data-tab="shipments">🚛 Отгрузки</button>
+                <button class="nav-link" data-tab="stats">📊 Статистика</button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="tab-container"></div>
+
+</body>
+
+</html>

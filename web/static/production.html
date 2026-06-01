@@ -1,24 +1,21 @@
 <!DOCTYPE html>
 <html lang="ru" data-bs-theme="dark">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MES Data Collector</title>
+    <title>MES Production</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/common.css">
-    <link rel="stylesheet" href="/css/workshop.css">
-    <link rel="stylesheet" href="/css/statistics.css">
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/workshop.css">
+    <link rel="stylesheet" href="/static/css/statistics.css">
 </head>
-
 <body>
     <!-- Табы -->
     <nav class="navbar navbar-dark bg-dark px-4">
         <div class="container-fluid">
-            <!-- Логотип вместо текста -->
             <a class="navbar-brand" href="#">
-                <img src="/images/logo.png" alt="Company Logo" height="32" class="d-inline-block align-top">
-                <span class="ms-2 d-none d-sm-inline">MES Data Collector</span>
+                <img src="/static/images/logo.png" alt="Company Logo" height="32" class="d-inline-block align-top">
+                <span class="ms-2 d-none d-sm-inline">🏭 MES Production</span>
             </a>
             <div class="nav nav-tabs" id="screen-tabs">
                 <button class="nav-link active" data-screen="workshop">🏭 Цех</button>
@@ -29,20 +26,14 @@
         </div>
     </nav>
 
-    <!-- Контейнер для активного экрана -->
     <div id="screen-container"></div>
-
     <div id="tooltip" class="hidden"></div>
 
-    <script src="/js/core/api.js"></script>
-    <script src="/js/core/config-loader.js"></script>
-
-    <script src="/js/screens/workshop.js"></script>
-    <script src="/js/screens/warehouse.js"></script>
-    <script src="/js/screens/shipping.js"></script>
-    <script src="/js/screens/statistics.js"></script>
-
-    <script src="/js/app.js"></script>
+    <script src="/static/js/core/api.js"></script>
+    <script src="/static/js/screens/workshop.js"></script>
+    <script src="/static/js/screens/warehouse.js"></script>
+    <script src="/static/js/screens/shipping.js"></script>
+    <script src="/static/js/screens/statistics.js"></script>
+    <script src="/static/js/production.js"></script>
 </body>
-
 </html>

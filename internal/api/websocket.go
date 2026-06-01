@@ -12,8 +12,6 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// Разрешаем все источники для разработки
-		// В продакшене нужно ограничить
 		return true
 	},
 	ReadBufferSize:  1024,
@@ -34,21 +32,19 @@ func serveWs(hub *events.Hub, w http.ResponseWriter, r *http.Request) {
 		Send: make(chan []byte, 256),
 	}
 
-	// Регистрируем клиента
 	hub.Register <- client
 
 	logger.Info("WebSocket клиент подключен: %s", r.RemoteAddr)
 
-	// Запускаем горутины для клиента
+	// Только отправка сообщений клиенту
 	go writePump(client)
+	// Чтение сообщений от клиента (для поддержания соединения)
 	go readPump(client)
 }
 
 // writePump отправляет сообщения клиенту
 func writePump(client *events.Client) {
-	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
-		ticker.Stop()
 		client.Conn.Close()
 	}()
 
@@ -56,36 +52,30 @@ func writePump(client *events.Client) {
 		select {
 		case message, ok := <-client.Send:
 			if !ok {
-				// Канал закрыт, отправляем CloseMessage
-				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				// Канал закрыт
 				return
 			}
-
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				logger.Error("Ошибка отправки WebSocket сообщения: %v", err)
-				return
-			}
-
-		case <-ticker.C:
-			// Отправляем Ping для поддержания соединения
-			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
 		}
 	}
 }
 
-// readPump читает сообщения от клиента
+// readPump читает сообщения от клиента (просто читаем, чтобы соединение не закрывалось)
 func readPump(client *events.Client) {
 	defer func() {
 		client.Hub.Unregister <- client
 		client.Conn.Close()
+		logger.Info("WebSocket клиент отключен")
 	}()
 
-	client.Conn.SetReadLimit(512)
+	// Устанавливаем таймаут на чтение
 	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+
+	// Обработчик Pong (обновляет таймаут)
 	client.Conn.SetPongHandler(func(string) error {
 		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
@@ -100,6 +90,4 @@ func readPump(client *events.Client) {
 			break
 		}
 	}
-
-	logger.Info("WebSocket клиент отключен")
 }

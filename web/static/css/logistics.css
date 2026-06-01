@@ -1,0 +1,155 @@
+.logistics-container {
+    padding: 20px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    background: #c0c0c0;
+}
+
+/* ========== ПЛАНЫ ========== */
+.plans-filter-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #d4d4d4;
+    border-radius: 4px;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-group label {
+    font-size: 11px;
+    color: #333;
+    text-transform: uppercase;
+}
+
+.filter-input {
+    padding: 3px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #e8e8e8;
+}
+
+.plans-table-wrapper {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #999;
+    border-radius: 4px;
+}
+
+.plans-table {
+    border-collapse: collapse;
+    min-width: 100%;
+    font-size: 12px;
+}
+
+.plans-table th {
+    background: #cc0000;
+    color: #fff;
+    padding: 5px;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #990000;
+}
+
+.plans-table td {
+    padding: 3px;
+    border: 1px solid #ccc;
+    text-align: center;
+}
+
+.plans-table .material-cell {
+    background: #e8e8e8;
+    font-weight: bold;
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: #d4d4d4;
+}
+
+.plans-table .total-cell {
+    background: #e8e8e8;
+    font-weight: bold;
+}
+
+.plan-input {
+    width: 80px;
+    padding: 1px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.plan-input:focus {
+    outline: none;
+    border-color: #cc0000;
+}
+
+/* ========== ОТГРУЗКИ ========== */
+.shipments-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.btn-primary {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.shipments-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.shipments-table th,
+.shipments-table td {
+    padding: 12px;
+    border: 1px solid #ccc;
+    text-align: left;
+}
+
+.shipments-table th {
+    background: #cc0000;
+    color: white;
+}
+
+.progress-bar {
+    width: 100px;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #28a745;
+    transition: width 0.3s;
+}
+
+.empty-state, .loading, .stats-placeholder {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
