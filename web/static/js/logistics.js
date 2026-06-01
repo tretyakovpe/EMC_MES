@@ -181,68 +181,314 @@ async function saveAllPlans() {
     renderPlansTab(document.getElementById('tab-container'));
 }
 
+function getStatusText(s) {
+    if (s.done) return '✅ Отгружена';
+    if (s.completed) return '📦 Готова';
+    return '🔄 В работе';
+}
+
 // ========== ОТГРУЗКИ ==========
 
-function renderShipmentsTab(container) {
+let currentShipment = null;
+let shipmentItems = [];
+let currentShipmentNumber = null;
+
+async function renderShipmentsTab(container) {
     container.innerHTML = `
         <div class="logistics-container">
-            <div class="shipments-panel">
-                <div class="shipments-header">
-                    <h3>🚛 Управление отгрузками</h3>
-                    <button id="create-shipment-btn" class="btn-primary">➕ Создать отгрузку</button>
+            <div class="shipments-layout">
+                <!-- Левая панель: список отгрузок -->
+                <div class="shipments-list-panel">
+                    <div class="panel-header">
+                        <h3>🚛 Отгрузки за сегодня</h3>
+                        <button id="create-shipment-btn" class="btn-primary">➕ Новая отгрузка</button>
+                    </div>
+                    <div class="shipments-grid" id="shipments-list">
+                        <div class="loading">Загрузка...</div>
+                    </div>
                 </div>
-                <div class="shipments-list" id="shipments-list">
-                    <div class="loading">Загрузка...</div>
+                
+                <!-- Правая панель: создание/редактирование отгрузки -->
+                <div class="shipment-editor-panel" id="shipment-editor" style="display: none;">
+                    <div class="panel-header">
+                        <h3>📦 Сборка отгрузки</h3>
+                        <button id="close-editor-btn" class="btn-close">✕</button>
+                    </div>
+                    <div class="shipment-number-input">
+                        <label>Номер накладной:</label>
+                        <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
+                    </div>
+                    <div class="shipment-items-list" id="shipment-items-list">
+                        <div class="empty-items">Добавьте материалы</div>
+                    </div>
+                    <div class="shipment-actions">
+                        <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
+                    </div>
+                </div>
+                
+                <!-- Панель выбора материалов -->
+                <div id="materials-picker" class="materials-picker" style="display: none;">
+                    <div class="picker-content">
+                        <div class="picker-header">
+                            <h4>Выберите материал</h4>
+                            <button class="close-picker-btn">✕</button>
+                        </div>
+                        <div class="materials-list" id="materials-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
     `;
     
-    loadShipments();
+    await loadTodayShipments();
     
     document.getElementById('create-shipment-btn')?.addEventListener('click', () => {
-        alert('Создание отгрузки (в разработке)');
+        currentShipmentNumber = null;
+        document.getElementById('shipment-number').value = '';
+        showMaterialsPicker();
     });
+    document.getElementById('close-editor-btn')?.addEventListener('click', closeShipmentEditor);
+    document.getElementById('save-shipment-btn')?.addEventListener('click', saveShipment);
 }
 
-async function loadShipments() {
+async function loadTodayShipments() {
+    const today = new Date().toISOString().slice(0, 10);
     try {
-        const shipments = await API.getShipments();
+        const shipments = await API.getShipments({ fromDate: today, toDate: today });
         const container = document.getElementById('shipments-list');
         
         if (!shipments.length) {
-            container.innerHTML = '<div class="empty-state">Нет отгрузок</div>';
+            container.innerHTML = '<div class="empty-state">Нет отгрузок за сегодня</div>';
             return;
         }
         
-        container.innerHTML = `
-            <table class="shipments-table">
-                <thead>
-                    <tr>
-                        <th>№</th>
-                        <th>Дата</th>
-                        <th>Статус</th>
-                        <th>Прогресс</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${shipments.map(s => `
-                        <tr>
-                            <td>${s.number || s.shipmentId}</td>
-                            <td>${s.date}</td>
-                            <td>${s.done ? '✅ Отгружена' : (s.completed ? '📦 Готова' : '🔄 В работе')}</td>
-                            <td><div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div></td>
-                            <td><button class="btn-sm" onclick="viewShipment(${s.shipmentId})">Детали</button></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
+        container.innerHTML = shipments.map(s => `
+            <div class="shipment-card ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}" 
+                 data-id="${s.shipmentId}"
+                 onclick="viewShipmentDetails(${s.shipmentId})">
+                <div class="shipment-header">
+                    <span class="shipment-number">№${s.number || s.shipmentId}</span>
+                    <span class="shipment-status">${getStatusText(s)}</span>
+                </div>
+                <div class="shipment-date">${s.date}</div>
+                <div class="shipment-progress">
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div>
+                    <span>${s.progress}%</span>
+                </div>
+                ${!s.done ? `<button class="delete-shipment-btn" onclick="event.stopPropagation(); deleteShipment(${s.shipmentId})">🗑</button>` : ''}
+            </div>
+        `).join('');
     } catch (error) {
         console.error('Ошибка загрузки отгрузок:', error);
     }
 }
+
+async function viewShipmentDetails(shipmentId) {
+    try {
+        const shipment = await API.getShipmentById(shipmentId);
+        
+        // Формируем детали для отображения
+        let detailsHtml = '';
+        if (shipment.details && shipment.details.length) {
+            detailsHtml = '<div class="details-list">';
+            for (const d of shipment.details) {
+                detailsHtml += `
+                    <div class="detail-item">
+                        <span class="detail-material">${d.materialCode}</span>
+                        <span class="detail-boxes">📦 ${d.scannedBoxes}/${d.boxes} кор.</span>
+                        <span class="detail-amount">📊 ${d.amount} шт.</span>
+                    </div>
+                `;
+            }
+            detailsHtml += '</div>';
+        } else {
+            detailsHtml = '<div class="no-details">Нет позиций</div>';
+        }
+        
+        alert(`Отгрузка №${shipment.number || shipment.shipmentId}\nДата: ${shipment.date}\nСтатус: ${shipment.completed ? 'Готова к отгрузке' : (shipment.done ? 'Отгружена' : 'В работе')}\nПрогресс: ${shipment.progress}%\n\nПозиции:\n${shipment.details?.map(d => `${d.materialCode}: ${d.scannedBoxes}/${d.boxes} кор. (${d.amount} шт.)`).join('\n') || 'нет'}`);
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Ошибка загрузки деталей отгрузки');
+    }
+}
+
+async function showMaterialsPicker() {
+    // Получаем доступные коробки (со статусом "Произведена")
+    const boxes = await API.getBoxes({ status: 'Произведена', limit: 100 });
+    
+    // Группируем по материалам
+    const materialsMap = new Map();
+    for (const box of boxes) {
+        if (!materialsMap.has(box.materialCode)) {
+            materialsMap.set(box.materialCode, {
+                materialId: box.materialId,
+                materialCode: box.materialCode,
+                availableBoxes: 0,
+                availableAmount: 0
+            });
+        }
+        const m = materialsMap.get(box.materialCode);
+        m.availableBoxes++;
+        m.availableAmount += box.amount;
+    }
+    
+    const materials = Array.from(materialsMap.values());
+    
+    const picker = document.getElementById('materials-picker');
+    const materialsList = document.getElementById('materials-list');
+    
+    if (materials.length === 0) {
+        materialsList.innerHTML = '<div class="empty-state">Нет доступных коробок для отгрузки</div>';
+    } else {
+        materialsList.innerHTML = materials.map(m => `
+            <div class="material-item" data-material-id="${m.materialId}" data-material-code="${m.materialCode}" data-available="${m.availableBoxes}" data-amount="${m.availableAmount}">
+                <div class="material-info">
+                    <strong>${m.materialCode}</strong>
+                    <span>📦 ${m.availableBoxes} коробок</span>
+                    <span>📊 ${m.availableAmount} шт.</span>
+                </div>
+                <button class="add-material-btn">➕ Добавить</button>
+            </div>
+        `).join('');
+    }
+    
+    picker.style.display = 'flex';
+    
+    materialsList.querySelectorAll('.add-material-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const item = btn.closest('.material-item');
+            const materialId = parseInt(item.dataset.materialId);
+            const materialCode = item.dataset.materialCode;
+            const maxBoxes = parseInt(item.dataset.available);
+            
+            const count = prompt(`Сколько коробок ${materialCode} добавить? (доступно: ${maxBoxes})`, '1');
+            if (count && parseInt(count) > 0) {
+                addToShipment(materialId, materialCode, parseInt(count));
+            }
+        });
+    });
+    
+    document.querySelector('.close-picker-btn').onclick = () => {
+        picker.style.display = 'none';
+    };
+}
+
+function addToShipment(materialId, materialCode, boxesCount) {
+    const existing = shipmentItems.find(i => i.materialId === materialId);
+    if (existing) {
+        existing.boxes += boxesCount;
+    } else {
+        shipmentItems.push({
+            materialId: materialId,
+            materialCode: materialCode,
+            boxes: boxesCount
+        });
+    }
+    renderShipmentItems();
+    
+    document.getElementById('materials-picker').style.display = 'none';
+}
+
+function renderShipmentItems() {
+    const container = document.getElementById('shipment-items-list');
+    const editor = document.getElementById('shipment-editor');
+    
+    if (shipmentItems.length === 0) {
+        container.innerHTML = '<div class="empty-items">Добавьте материалы</div>';
+        editor.style.display = 'none';
+        return;
+    }
+    
+    editor.style.display = 'flex';
+    
+    container.innerHTML = shipmentItems.map((item, idx) => `
+        <div class="shipment-item-card">
+            <div class="item-info">
+                <strong>${item.materialCode}</strong>
+                <span>📦 ${item.boxes} кор.</span>
+            </div>
+            <div class="item-actions">
+                <button class="item-delete" onclick="removeShipmentItem(${idx})">🗑</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function removeShipmentItem(index) {
+    shipmentItems.splice(index, 1);
+    renderShipmentItems();
+}
+
+async function saveShipment() {
+    if (shipmentItems.length === 0) {
+        alert('Добавьте хотя бы один материал');
+        return;
+    }
+    
+    const shipmentNumber = document.getElementById('shipment-number')?.value.trim();
+    if (!shipmentNumber) {
+        alert('Введите номер накладной');
+        return;
+    }
+    
+    // Получаем количество деталей в коробке для каждого материала
+    const details = [];
+    for (const item of shipmentItems) {
+        // Получаем количество деталей в коробке из материала
+        const material = await API.getMaterialByCode(item.materialCode);
+        const amountPerBox = material?.quantityInHU || 50;
+        
+        details.push({
+            materialId: item.materialId,
+            boxes: item.boxes,
+            amount: item.boxes * amountPerBox
+        });
+    }
+    
+    try {
+        const result = await API.createShipment({
+            number: parseInt(shipmentNumber),
+            date: new Date().toISOString().slice(0, 10),
+            details: details
+        });
+        
+        alert(`Отгрузка №${shipmentNumber} создана`);
+        
+        // Очищаем форму
+        shipmentItems = [];
+        currentShipmentNumber = null;
+        renderShipmentItems();
+        
+        // Обновляем список отгрузок
+        await loadTodayShipments();
+        
+    } catch (error) {
+        console.error('Ошибка создания отгрузки:', error);
+        alert('Ошибка создания отгрузки: ' + error.message);
+    }
+}
+
+function closeShipmentEditor() {
+    shipmentItems = [];
+    currentShipmentNumber = null;
+    renderShipmentItems();
+}
+
+async function deleteShipment(shipmentId) {
+    if (!confirm('Удалить отгрузку?')) return;
+    try {
+        await API.deleteShipment(shipmentId);
+        await loadTodayShipments();
+    } catch (error) {
+        console.error('Ошибка удаления:', error);
+        alert('Ошибка удаления: ' + error.message);
+    }
+}
+
+// Глобальные функции для onclick
+window.viewShipmentDetails = viewShipmentDetails;
+window.deleteShipment = deleteShipment;
+window.removeShipmentItem = removeShipmentItem;
 
 // ========== СТАТИСТИКА ==========
 
@@ -276,8 +522,3 @@ function escapeHtml(str) {
         return m;
     });
 }
-
-// Экспортируем для кнопок
-window.viewShipment = async (id) => {
-    alert(`Просмотр отгрузки ${id} (в разработке)`);
-};

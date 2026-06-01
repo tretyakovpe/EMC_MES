@@ -14,19 +14,19 @@ type Shipment struct {
 	ShipmentID int
 	Number     *int
 	Date       time.Time
-	Completed  bool // отсканированы все коробки
-	Done       bool // машина уехала, накладная закрыта
+	Completed  bool
+	Done       bool
 }
 
-// ShipmentDetail представляет строку отгрузки (материал и количество)
+// ShipmentDetail представляет строку отгрузки
 type ShipmentDetail struct {
 	ShipmentDetailID int
 	ShipmentID       int
 	MaterialID       int
 	MaterialCode     string
-	Boxes            int // количество коробок
-	Amount           int // количество деталей
-	ScannedBoxes     int // отсканировано коробок
+	Boxes            int
+	Amount           int
+	ScannedBoxes     int
 }
 
 // ShipmentWithDetails объединяет отгрузку и её детали
@@ -46,27 +46,22 @@ func GetShipments(completed, done *bool, fromDate, toDate *time.Time) ([]Shipmen
 		WHERE 1=1
 	`
 	args := []interface{}{}
-	argIdx := 1
 
 	if completed != nil {
-		query += fmt.Sprintf(" AND Completed = @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *completed))
-		argIdx++
+		query += " AND Completed = ?"
+		args = append(args, *completed)
 	}
 	if done != nil {
-		query += fmt.Sprintf(" AND Done = @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *done))
-		argIdx++
+		query += " AND Done = ?"
+		args = append(args, *done)
 	}
 	if fromDate != nil {
-		query += fmt.Sprintf(" AND Date >= @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *fromDate))
-		argIdx++
+		query += " AND Date >= ?"
+		args = append(args, *fromDate)
 	}
 	if toDate != nil {
-		query += fmt.Sprintf(" AND Date <= @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *toDate))
-		argIdx++
+		query += " AND Date <= ?"
+		args = append(args, *toDate)
 	}
 
 	query += " ORDER BY Date DESC, ShipmentID DESC"
@@ -109,8 +104,8 @@ func GetShipmentByID(shipmentID int) (*ShipmentWithDetails, error) {
 	err := DB.QueryRowContext(ctx, `
 		SELECT ShipmentID, Number, Date, Completed, Done
 		FROM Shipments
-		WHERE ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID)).Scan(
+		WHERE ShipmentID = ?
+	`, shipmentID).Scan(
 		&shipment.ShipmentID, &number, &shipment.Date, &shipment.Completed, &shipment.Done,
 	)
 	if err == sql.ErrNoRows {
@@ -136,9 +131,9 @@ func GetShipmentByID(shipmentID int) (*ShipmentWithDetails, error) {
 			sd.ScannedBoxes
 		FROM ShipmentDetails sd
 		JOIN materials m ON sd.MaterialID = m.MaterialID
-		WHERE sd.ShipmentID = @shipmentID
+		WHERE sd.ShipmentID = ?
 		ORDER BY m.MaterialCode
-	`, sql.Named("shipmentID", shipmentID))
+	`, shipmentID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка получения деталей отгрузки: %w", err)
 	}
@@ -181,16 +176,12 @@ func CreateShipment(number *int, date time.Time) (int, error) {
 
 	query := `
 		INSERT INTO Shipments (Number, Date, Completed, Done)
-		VALUES (@number, @date, 0, 0);
+		VALUES (?, ?, 0, 0);
 		SELECT SCOPE_IDENTITY();
 	`
 
 	var shipmentID int
-	err := DB.QueryRowContext(ctx, query,
-		sql.Named("number", numberParam),
-		sql.Named("date", date),
-	).Scan(&shipmentID)
-
+	err := DB.QueryRowContext(ctx, query, numberParam, date).Scan(&shipmentID)
 	if err != nil {
 		return 0, fmt.Errorf("ошибка создания отгрузки: %w", err)
 	}
@@ -206,15 +197,10 @@ func AddShipmentDetail(shipmentID, materialID, boxes, amount int) error {
 
 	query := `
 		INSERT INTO ShipmentDetails (ShipmentID, MaterialID, Boxes, Amount, ScannedBoxes)
-		VALUES (@shipmentID, @materialID, @boxes, @amount, 0)
+		VALUES (?, ?, ?, ?, 0)
 	`
 
-	_, err := DB.ExecContext(ctx, query,
-		sql.Named("shipmentID", shipmentID),
-		sql.Named("materialID", materialID),
-		sql.Named("boxes", boxes),
-		sql.Named("amount", amount),
-	)
+	_, err := DB.ExecContext(ctx, query, shipmentID, materialID, boxes, amount)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления детали отгрузки: %w", err)
 	}
@@ -225,24 +211,22 @@ func AddShipmentDetail(shipmentID, materialID, boxes, amount int) error {
 }
 
 // ScanBoxForShipment сканирует коробку в отгрузке
-// Возвращает true если отгрузка полностью отсканирована
-func ScanBoxForShipment(shipmentID, huID int, materialID int) (bool, error) {
+func ScanBoxForShipment(shipmentID, huID, materialID int) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// Начинаем транзакцию
 	tx, err := DB.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("ошибка начала транзакции: %w", err)
 	}
 	defer tx.Rollback()
 
-	// 1. Обновляем ShipmentDetails (увеличиваем ScannedBoxes)
+	// 1. Обновляем ShipmentDetails
 	result, err := tx.ExecContext(ctx, `
 		UPDATE ShipmentDetails 
 		SET ScannedBoxes = ScannedBoxes + 1
-		WHERE ShipmentID = @shipmentID AND MaterialID = @materialID
-	`, sql.Named("shipmentID", shipmentID), sql.Named("materialID", materialID))
+		WHERE ShipmentID = ? AND MaterialID = ?
+	`, shipmentID, materialID)
 	if err != nil {
 		return false, fmt.Errorf("ошибка обновления ScannedBoxes: %w", err)
 	}
@@ -252,21 +236,21 @@ func ScanBoxForShipment(shipmentID, huID int, materialID int) (bool, error) {
 		return false, fmt.Errorf("материал %d не найден в отгрузке %d", materialID, shipmentID)
 	}
 
-	// 2. Обновляем HU (связываем с отгрузкой)
+	// 2. Обновляем HU
 	_, err = tx.ExecContext(ctx, `
 		UPDATE HU 
-		SET ShipmentID = @shipmentID 
-		WHERE HUID = @huID
-	`, sql.Named("shipmentID", shipmentID), sql.Named("huID", huID))
+		SET ShipmentID = ? 
+		WHERE HUID = ?
+	`, shipmentID, huID)
 	if err != nil {
 		return false, fmt.Errorf("ошибка обновления HU: %w", err)
 	}
 
-	// 3. Добавляем статус "Подготовлена к отгрузке"
+	// 3. Добавляем статус
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO HU_Status (HUID, Status, ChangedAt)
-		VALUES (@huID, N'Подготовлена к отгрузке', GETDATE())
-	`, sql.Named("huID", huID))
+		VALUES (?, N'Подготовлена к отгрузке', GETDATE())
+	`, huID)
 	if err != nil {
 		return false, fmt.Errorf("ошибка добавления статуса: %w", err)
 	}
@@ -278,8 +262,8 @@ func ScanBoxForShipment(shipmentID, huID int, materialID int) (bool, error) {
 			SUM(Boxes) as TotalBoxes,
 			SUM(ScannedBoxes) as TotalScanned
 		FROM ShipmentDetails
-		WHERE ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID)).Scan(&totalBoxes, &totalScanned)
+		WHERE ShipmentID = ?
+	`, shipmentID).Scan(&totalBoxes, &totalScanned)
 	if err != nil {
 		return false, fmt.Errorf("ошибка проверки статуса отгрузки: %w", err)
 	}
@@ -291,8 +275,8 @@ func ScanBoxForShipment(shipmentID, huID int, materialID int) (bool, error) {
 		_, err = tx.ExecContext(ctx, `
 			UPDATE Shipments 
 			SET Completed = 1 
-			WHERE ShipmentID = @shipmentID
-		`, sql.Named("shipmentID", shipmentID))
+			WHERE ShipmentID = ?
+		`, shipmentID)
 		if err != nil {
 			return false, fmt.Errorf("ошибка обновления статуса отгрузки: %w", err)
 		}
@@ -311,7 +295,6 @@ func CompleteShipment(shipmentID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Начинаем транзакцию
 	tx, err := DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("ошибка начала транзакции: %w", err)
@@ -322,8 +305,8 @@ func CompleteShipment(shipmentID int) error {
 	result, err := tx.ExecContext(ctx, `
 		UPDATE Shipments 
 		SET Done = 1, Completed = 1
-		WHERE ShipmentID = @shipmentID AND Done = 0
-	`, sql.Named("shipmentID", shipmentID))
+		WHERE ShipmentID = ? AND Done = 0
+	`, shipmentID)
 	if err != nil {
 		return fmt.Errorf("ошибка завершения отгрузки: %w", err)
 	}
@@ -333,13 +316,13 @@ func CompleteShipment(shipmentID int) error {
 		return fmt.Errorf("отгрузка %d уже завершена или не существует", shipmentID)
 	}
 
-	// 2. Обновляем статус всех коробок в этой отгрузке на "Отгружена"
+	// 2. Обновляем статус всех коробок в этой отгрузке
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO HU_Status (HUID, Status, ChangedAt)
 		SELECT h.HUID, N'Отгружена', GETDATE()
 		FROM HU h
-		WHERE h.ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID))
+		WHERE h.ShipmentID = ?
+	`, shipmentID)
 	if err != nil {
 		return fmt.Errorf("ошибка обновления статуса коробок: %w", err)
 	}
@@ -352,7 +335,7 @@ func CompleteShipment(shipmentID int) error {
 	return nil
 }
 
-// DeleteShipment удаляет отгрузку (только если не завершена)
+// DeleteShipment удаляет отгрузку
 func DeleteShipment(shipmentID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -360,8 +343,8 @@ func DeleteShipment(shipmentID int) error {
 	// Проверяем, что отгрузка не завершена
 	var done bool
 	err := DB.QueryRowContext(ctx, `
-		SELECT Done FROM Shipments WHERE ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID)).Scan(&done)
+		SELECT Done FROM Shipments WHERE ShipmentID = ?
+	`, shipmentID).Scan(&done)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("отгрузка %d не найдена", shipmentID)
 	}
@@ -372,7 +355,6 @@ func DeleteShipment(shipmentID int) error {
 		return fmt.Errorf("нельзя удалить завершённую отгрузку %d", shipmentID)
 	}
 
-	// Начинаем транзакцию
 	tx, err := DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("ошибка начала транзакции: %w", err)
@@ -381,16 +363,16 @@ func DeleteShipment(shipmentID int) error {
 
 	// Удаляем детали
 	_, err = tx.ExecContext(ctx, `
-		DELETE FROM ShipmentDetails WHERE ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID))
+		DELETE FROM ShipmentDetails WHERE ShipmentID = ?
+	`, shipmentID)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления деталей отгрузки: %w", err)
 	}
 
 	// Удаляем заголовок
 	_, err = tx.ExecContext(ctx, `
-		DELETE FROM Shipments WHERE ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID))
+		DELETE FROM Shipments WHERE ShipmentID = ?
+	`, shipmentID)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления отгрузки: %w", err)
 	}
@@ -414,8 +396,8 @@ func GetShipmentProgress(shipmentID int) (int, error) {
 			SUM(Boxes) as TotalBoxes,
 			SUM(ScannedBoxes) as TotalScanned
 		FROM ShipmentDetails
-		WHERE ShipmentID = @shipmentID
-	`, sql.Named("shipmentID", shipmentID)).Scan(&totalBoxes, &totalScanned)
+		WHERE ShipmentID = ?
+	`, shipmentID).Scan(&totalBoxes, &totalScanned)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
