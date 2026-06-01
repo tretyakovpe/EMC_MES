@@ -1,0 +1,199 @@
+/* Контейнер статистики */
+.statistics-container {
+    display: flex;
+    height: calc(100vh - 56px);
+    background: var(--bg-main);
+}
+
+/* Таблица статистики */
+.statistics-table-wrapper {
+    flex: 2;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.statistics-table-container {
+    background: var(--bg-card);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    overflow: auto;
+}
+
+.statistics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.statistics-table th {
+    background: var(--primary-color);
+    color: var(--secondary-color);
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+.statistics-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-dark);
+}
+
+.statistics-table tr:hover {
+    background: rgba(204, 0, 0, 0.05);
+    cursor: pointer;
+}
+
+.statistics-table tr.selected {
+    background: rgba(204, 0, 0, 0.1);
+    border-left: 3px solid var(--primary-color);
+}
+
+.statistics-table .empty-row,
+.statistics-table .error-row {
+    text-align: center;
+    color: var(--text-light);
+    padding: 40px;
+}
+
+/* Панель фильтров */
+.statistics-panel {
+    width: 320px;
+    background: var(--bg-card);
+    border-left: 3px solid var(--primary-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-tab {
+    flex: 1;
+    padding: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-light);
+    transition: all 0.2s;
+}
+
+.panel-tab.active {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    background: rgba(204, 0, 0, 0.05);
+}
+
+.panel-tab:hover {
+    background: rgba(204, 0, 0, 0.05);
+}
+
+.panel-filters {
+    padding: 16px;
+}
+
+.filter-group {
+    margin-bottom: 16px;
+}
+
+.filter-group label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.filter-input,
+.filter-select {
+    width: 100%;
+    padding: 8px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-dark);
+    font-size: 13px;
+}
+
+.filter-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--primary-color);
+    color: var(--secondary-color);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+/* Панель действий */
+.panel-actions {
+    padding: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.action-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 16px 0;
+}
+
+.action-title {
+    font-size: 12px;
+    color: var(--primary-color);
+    margin-bottom: 12px;
+    font-weight: bold;
+}
+
+.action-btn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: var(--primary-color);
+    color: var(--secondary-color);
+    border-color: var(--primary-color);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .statistics-container {
+        flex-direction: column;
+    }
+    
+    .statistics-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 3px solid var(--primary-color);
+    }
+    
+    .statistics-table-wrapper {
+        flex: 1;
+    }
+    
+    .statistics-table th,
+    .statistics-table td {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+}

@@ -6,7 +6,7 @@ class WorkshopScreen {
         this.container = null;
         this.ws = null;
     }
-    
+
     async init() {
         // Создаём контейнер
         this.container = document.getElementById('screen-container');
@@ -27,20 +27,20 @@ class WorkshopScreen {
                 </div>
             </div>
         `;
-        
+
         // Загружаем начальные данные (один раз)
         await this.loadLines();
-        
+
         // Подключаем WebSocket для живых событий
         this.initWebSocket();
-        
+
         console.log('Workshop screen initialized');
     }
-    
+
     async loadLines() {
         const linesData = await API.getLines();
         this.lines.clear();
-        
+
         for (const data of linesData) {
             const line = {
                 name: data.name,
@@ -55,22 +55,22 @@ class WorkshopScreen {
             };
             this.lines.set(data.name, line);
         }
-        
+
         this.renderLines();
     }
-    
+
     renderLines() {
         const grid = document.getElementById('lines-grid');
         if (!grid) return;
-        
+
         grid.innerHTML = '';
-        
+
         for (const [name, line] of this.lines) {
             const statusClass = line.isOnline ? 'online' : 'offline';
             const statusText = line.isOnline ? '🟢 ONLINE' : '🔴 OFFLINE';
             const fillPercent = line.maxCount > 0 ? (line.currentCount / line.maxCount * 100) : 0;
             const isSelected = this.selectedLine && this.selectedLine.name === name;
-            
+
             const card = document.createElement('div');
             card.className = `line-card ${isSelected ? 'selected' : ''}`;
             card.dataset.line = name;
@@ -99,44 +99,44 @@ class WorkshopScreen {
                     <button class="btn-toggle-status ${line.isActive ? 'btn-offline' : 'btn-online'}" 
                             data-line="${name}" 
                             data-status="${line.isActive}">
-                        ${line.isActive ? '🟢 Включена':'🔴 Выключена'}
+                        ${line.isActive ? '🟢 Включена' : '🔴 Выключена'}
                     </button>
                 </div>
             `;
-            
+
             card.addEventListener('click', (e) => {
                 if (!e.target.classList.contains('btn-toggle-status')) {
                     this.selectLine(name);
                 }
             });
-            
+
             grid.appendChild(card);
         }
-        
+
         this.attachStatusButtonHandlers();
     }
-    
+
     attachStatusButtonHandlers() {
         const buttons = document.querySelectorAll('.btn-toggle-status');
         buttons.forEach(btn => {
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
-            
+
             newBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const lineName = newBtn.dataset.line;
                 const currentStatus = newBtn.dataset.status === 'true';
                 const newStatus = !currentStatus;
-                
+
                 try {
                     const response = await fetch(`/api/lines/status?name=${encodeURIComponent(lineName)}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ isOnline: newStatus })
                     });
-                    
+
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    
+
                     // Обновляем локально (сервер сам разошлёт событие через WebSocket)
                     const line = this.lines.get(lineName);
                     if (line) {
@@ -153,20 +153,20 @@ class WorkshopScreen {
             });
         });
     }
-    
+
     selectLine(lineName) {
         const line = this.lines.get(lineName);
         if (!line) return;
-        
+
         this.selectedLine = line;
         this.updateDetailPanel(line);
         this.renderLines();
     }
-    
+
     updateDetailPanel(line) {
         const panelContent = document.getElementById('panelContent');
         const panelStatus = document.getElementById('panelStatus');
-        
+
         if (!line) {
             panelContent.innerHTML = `
                 <div class="placeholder">
@@ -178,15 +178,15 @@ class WorkshopScreen {
             panelStatus.className = 'panel-status';
             return;
         }
-        
+
         const statusClass = line.isOnline ? 'online' : 'offline';
         const statusText = line.isOnline ? 'ОНЛАЙН' : 'ОФФЛАЙН';
         const statusIcon = line.isOnline ? '🟢' : '🔴';
         const fillPercent = line.maxCount > 0 ? (line.currentCount / line.maxCount * 100) : 0;
-        
+
         panelStatus.innerHTML = `${statusIcon} ${statusText}`;
         panelStatus.className = `panel-status ${statusClass}`;
-        
+
         panelContent.innerHTML = `
             <div class="line-detail">
                 <div class="detail-row">
@@ -222,32 +222,35 @@ class WorkshopScreen {
             </div>
         `;
     }
-    
+
     initWebSocket() {
         this.ws = new WebSocket(`ws://${window.location.host}/ws`);
-        
+
         this.ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                
+
                 switch (message.type) {
                     case 'box_closed':
                         this.handleBoxClosed(message.data);
                         break;
-                        
+
                     case 'part_ok':
                         this.handlePartProduced(message.data, true);
                         break;
-                        
+
                     case 'part_nok':
                         this.handlePartProduced(message.data, false);
                         break;
-                        
+
                     case 'line_status':
                         this.handleLineStatusChange(message.data);
                         break;
                     case 'line_active':
                         this.handleLineActiveChange(message.data);
+                        break;
+                    case 'line_card_update':
+                        this.handleLineCardUpdate(message.data);
                         break;
 
                 }
@@ -255,37 +258,35 @@ class WorkshopScreen {
                 console.error('WebSocket parse error:', error);
             }
         };
-        
+
         this.ws.onclose = () => {
             console.log('WebSocket disconnected, reconnecting in 5s...');
             setTimeout(() => this.initWebSocket(), 5000);
         };
     }
-    
+
     handleBoxClosed(data) {
         const line = this.lines.get(data.line);
         if (line) {
             line.currentMaterial = data.material;
             line.currentCount = 0;
             line.targetCount = 0;
-            this.animateLine(data.line, 'box');
             this.renderLines();
             if (this.selectedLine && this.selectedLine.name === data.line) {
                 this.updateDetailPanel(line);
             }
         }
     }
-    
+
     handlePartProduced(data, isGood) {
         const line = this.lines.get(data.line);
         if (line) {
             line.currentMaterial = data.material;
-            line.targetCount = (line.currentCount || 0) + 1;
-            this.animateLine(data.line, isGood ? 'good' : 'bad');
-            this.animateCounter(line);
+            line.currentCount = data.counter;
+            line.maxCount = data.boxVolume;
         }
     }
-    
+
     handleLineStatusChange(data) {
         const line = this.lines.get(data.line);
         if (line && line.isOnline !== data.isOnline) {
@@ -297,7 +298,7 @@ class WorkshopScreen {
             }
         }
     }
-    
+
     handleLineActiveChange(data) {
         const line = this.lines.get(data.line);
         if (line && line.isActive !== data.isActive) {
@@ -310,6 +311,16 @@ class WorkshopScreen {
         }
     }
 
+    handleLineCardUpdate(data) {
+        const line = this.lines.get(data.line);
+        if (line) {
+            line.currentMaterial = data.material;
+            line.currentCount = data.counter;
+            line.maxCount = data.boxVolume;
+        }
+            this.renderLines();
+    }
+
     animateLine(lineName, type) {
         const cards = document.querySelectorAll('.line-card');
         for (const card of cards) {
@@ -317,15 +328,15 @@ class WorkshopScreen {
                 card.classList.add('producing');
                 setTimeout(() => {
                     card.classList.remove('producing');
-                }, 300);
+                }, 1);
                 break;
             }
         }
     }
-    
+
     animateCounter(line) {
-        const start = line.currentCount;
-        const end = line.targetCount;
+/*        const start = line.currentCount-1;
+        const end = line.currentCount;
         const duration = 300;
         const startTime = performance.now();
         
@@ -333,27 +344,27 @@ class WorkshopScreen {
             const elapsed = now - startTime;
             const progress = Math.min(1, elapsed / duration);
             line.currentCount = Math.floor(start + (end - start) * progress);
-            this.renderLines();
-            if (this.selectedLine === line) this.updateDetailPanel(line);
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-        
+*/            this.renderLines();
+        if (this.selectedLine === line) this.updateDetailPanel(line);
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        }
+        //};
+
         requestAnimationFrame(animate);
     }
-    
+
     escapeHtml(str) {
         if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
+        return str.replace(/[&<>]/g, function (m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
             return m;
         });
     }
-    
+
     destroy() {
         if (this.ws) this.ws.close();
         if (this.container) this.container.innerHTML = '';

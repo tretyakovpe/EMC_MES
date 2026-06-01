@@ -18,11 +18,16 @@ function switchScreen(screenName) {
         case 'shipping':
             container.innerHTML = '<div class="text-center p-5">🚧 Склад отгрузки в разработке</div>';
             return;
+        case 'statistics':
+            currentScreen = new StatisticsScreen();
+            break;
         default:
             currentScreen = new WorkshopScreen();
     }
     
-    currentScreen.init();
+    if (currentScreen && currentScreen.init) {
+        currentScreen.init();
+    }
 }
 
 // Инициализация

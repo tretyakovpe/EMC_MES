@@ -95,15 +95,27 @@ func (h *Hub) BroadcastBoxClosed(line, material, labelCode string, amount int) {
 }
 
 // BroadcastPartProduced отправляет событие о производстве детали
-func (h *Hub) BroadcastPartProduced(line, material string, counter int, isGood bool) {
+func (h *Hub) BroadcastPartProduced(line, material string, counter int, boxVolume int, isGood bool) {
 	eventType := "part_ok"
 	if !isGood {
 		eventType = "part_nok"
 	}
 	h.Broadcast(eventType, map[string]interface{}{
-		"line":     line,
-		"material": material,
-		"counter":  counter,
+		"line":      line,
+		"material":  material,
+		"counter":   counter,
+		"boxVolume": boxVolume,
+	})
+}
+
+// BroadcastLineCardUpdate отправляет данные для обновления карточек на фронте
+func (h *Hub) BroadcastLineCardUpdate(line string, material string, counter int, boxVolume int) {
+	eventType := "line_card_update"
+	h.Broadcast(eventType, map[string]interface{}{
+		"line":      line,
+		"material":  material,
+		"counter":   counter,
+		"boxVolume": boxVolume,
 	})
 }
 

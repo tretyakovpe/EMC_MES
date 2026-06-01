@@ -61,6 +61,10 @@ func SetupRoutes() *http.ServeMux {
 	// События (для Data Collector)
 	mux.HandleFunc("/api/events", handleEvent)
 
+	// Статистика
+	mux.HandleFunc("/api/statistics/boxes", handleGetBoxesStats)
+	mux.HandleFunc("/api/statistics/bad-parts", handleGetBadPartsStats)
+	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 	return mux
 }
 

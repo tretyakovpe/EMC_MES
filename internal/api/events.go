@@ -24,9 +24,10 @@ type BoxClosedEvent struct {
 
 // PartEvent событие производства детали
 type PartEvent struct {
-	Line     string `json:"line"`
-	Material string `json:"material"`
-	Counter  int    `json:"counter"`
+	Line      string `json:"line"`
+	Material  string `json:"material"`
+	Counter   int    `json:"counter"`
+	BoxVolume int    `json:"boxVolume"`
 }
 
 // LineStatusEvent событие изменения статуса линии
@@ -80,6 +81,15 @@ func handleEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		handlePartEvent(data, false)
 
+	case "line_card_update":
+		var data PartEvent
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			logger.Error("API /api/events: ошибка парсинга при обновлении карточек: %v", err)
+			http.Error(w, "Invalid line card update event data", http.StatusBadRequest)
+			return
+		}
+		hadleLineCardUpdate(data)
+
 	case "line_status":
 		var data LineStatusEvent
 		if err := json.Unmarshal(event.Data, &data); err != nil {
@@ -100,6 +110,13 @@ func handleEvent(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func hadleLineCardUpdate(data PartEvent) {
+	// Отправляем событие всем подключённым WebSocket клиентам
+	if globalHub != nil {
+		globalHub.BroadcastLineCardUpdate(data.Line, data.Material, data.Counter, data.BoxVolume)
+	}
+}
+
 // handleBoxClosedEvent обрабатывает событие закрытия коробки
 func handleBoxClosedEvent(data BoxClosedEvent) {
 	logger.Info("Событие: закрыта коробка на линии %s, материал %s, бирка %s, кол-во %d",
@@ -117,12 +134,12 @@ func handlePartEvent(data PartEvent, isGood bool) {
 	if !isGood {
 		status = "NOK"
 	}
-	logger.Info("Событие: деталь %s на линии %s, счётчик %d, статус %s",
-		data.Material, data.Line, data.Counter, status)
+	logger.Info("Событие: деталь %s на линии %s, счётчик %d/%d, статус %s",
+		data.Material, data.Line, data.Counter, data.BoxVolume, status)
 
 	// Отправляем событие всем подключённым WebSocket клиентам
 	if globalHub != nil {
-		globalHub.BroadcastPartProduced(data.Line, data.Material, data.Counter, isGood)
+		globalHub.BroadcastPartProduced(data.Line, data.Material, data.Counter, data.BoxVolume, isGood)
 	}
 }
 
