@@ -51,6 +51,8 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/plans/", handlePlanByID)
 	mux.HandleFunc("/api/plans/month", handleGetPlansByMonth)
 
+	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
+
 	mux.HandleFunc("/api/shipments", handleShipments)
 	mux.HandleFunc("/api/shipments/", handleShipmentByID)
 
@@ -65,6 +67,11 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/events", handleEvent)
 
 	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
+
+	mux.HandleFunc("/production/shiftplan/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/shiftplan.html")
+	})
 
 	return mux
 }

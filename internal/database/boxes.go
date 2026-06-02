@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"EMC_MES/internal/config"
 	"EMC_MES/internal/logger"
 )
 
@@ -443,4 +444,62 @@ func GetBoxesByShipment(shipmentID int) ([]BoxWithStatus, error) {
 	}
 
 	return boxes, nil
+}
+
+// CompletedBoxInfo информация о готовой коробке
+type CompletedBoxInfo struct {
+	Label        string
+	Amount       int
+	MaterialCode string
+}
+
+// GetCompletedBoxesForShift возвращает готовые коробки за смену
+func GetCompletedBoxesForShift(lineName string, dateTime time.Time, shift string) (map[string][]CompletedBoxInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cfg := config.GetConfig()
+	// Определяем границы смены
+	shiftStart, shiftEnd := cfg.GetShiftBounds(shift)
+
+	query := `
+    SELECT 
+        p.label,
+        p.amount,
+        RTRIM(p.material) as materialCode
+    FROM prod p
+    WHERE RTRIM(p.line) = ?
+      AND p.date = ?
+      AND p.time >= ? 
+      AND p.time <= ?
+    ORDER BY p.time
+`
+	rows, err := DB.QueryContext(ctx, query, lineName, dateTime.Format("2006-01-02"), shiftStart, shiftEnd)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса готовых коробок: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string][]CompletedBoxInfo)
+	for rows.Next() {
+		var info CompletedBoxInfo
+		err := rows.Scan(&info.Label, &info.Amount, &info.MaterialCode)
+		if err != nil {
+			continue
+		}
+		result[info.MaterialCode] = append(result[info.MaterialCode], info)
+	}
+
+	return result, nil
+}
+
+func getShiftBounds(t time.Time, shift string) (string, string) {
+	switch shift {
+	case "1":
+		return "06:00:00", "13:59:59"
+	case "2":
+		return "14:00:00", "21:59:59"
+	default:
+		return "22:00:00", "05:59:59"
+	}
 }

@@ -1,0 +1,165 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #c0c0c0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.shiftplan-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #d4d4d4;
+    border-radius: 8px;
+    border-left: 4px solid #cc0000;
+}
+
+.header h1 {
+    font-size: 24px;
+    color: #333;
+}
+
+#line-name {
+    color: #cc0000;
+    font-weight: bold;
+}
+
+.date-info {
+    font-size: 16px;
+    color: #666;
+    font-family: monospace;
+}
+
+.shiftplan-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.material-section {
+    background: #e8e8e8;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid #ccc;
+}
+
+.material-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #cc0000;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #cc0000;
+}
+
+.boxes-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.box-card {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+
+.box-card:hover {
+    transform: translateY(-2px);
+}
+
+.box-card.planned {
+    background: #cc0000;
+    color: white;
+    border: 1px solid #990000;
+}
+
+.box-card.completed {
+    background: #28a745;
+    color: white;
+    border: 1px solid #1e7e34;
+}
+
+.box-card .box-number {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.box-card .box-status {
+    font-size: 10px;
+}
+
+.material-progress {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #ccc;
+    font-size: 14px;
+    color: #333;
+}
+
+.progress-text {
+    font-weight: bold;
+}
+
+.progress-bar-container {
+    margin-top: 8px;
+    height: 8px;
+    background: #d4d4d4;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #28a745;
+    transition: width 0.3s;
+}
+
+.loading, .empty, .error {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-size: 16px;
+}
+
+.error {
+    color: #cc0000;
+}
+
+@media (max-width: 768px) {
+    .box-card {
+        width: 60px;
+        height: 60px;
+        font-size: 10px;
+    }
+    
+    .box-card .box-number {
+        font-size: 16px;
+    }
+    
+    .header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}

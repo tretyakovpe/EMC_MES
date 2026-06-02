@@ -390,14 +390,14 @@ func handlePlansFromExcel(w http.ResponseWriter, r *http.Request) {
 
 	var req ExcelPlansRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Error("API /api/plans/from-excel: ошибка парсинга: %v", err)
+		logger.Error("API /api/plans/from-excel: error parsing request: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	planDate, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		logger.Error("API /api/plans/from-excel: ошибка парсинга даты: %v", err)
+		logger.Error("API /api/plans/from-excel: error parsing date: %v", err)
 		http.Error(w, "Invalid date format", http.StatusBadRequest)
 		return
 	}
@@ -413,49 +413,51 @@ func handlePlansFromExcel(w http.ResponseWriter, r *http.Request) {
 	errors := []string{}
 
 	for _, p := range req.Plans {
-		// Получаем MaterialID по коду материала
+		// Get MaterialID by material code
 		material, err := database.GetMaterialByCode(p.MaterialCode)
 		if err != nil || material == nil {
 			errorCount++
-			errors = append(errors, fmt.Sprintf("Материал %s не найден", p.MaterialCode))
-			logger.Error("[EXCEL] Материал %s не найден в БД", p.MaterialCode)
+			errMsg := fmt.Sprintf("Material %s not found", p.MaterialCode)
+			errors = append(errors, errMsg)
+			logger.Error("[EXCEL] %s", errMsg)
 			continue
 		}
 
-		// Проверяем, существует ли уже план на эту дату, смену и материал
+		// Check if plan exists for this date, shift AND material
 		existingPlan, err := database.GetPlanByDateAndMaterial(planDate, p.Shift, material.MaterialID)
 		if err != nil {
 			errorCount++
-			errors = append(errors, fmt.Sprintf("Ошибка проверки существующего плана %s (%s): %v", p.MaterialCode, p.Shift, err))
-			logger.Error("[EXCEL] Ошибка проверки плана: материал=%s, смена=%s, ошибка=%v", p.MaterialCode, p.Shift, err)
+			errMsg := fmt.Sprintf("Error checking existing plan for %s (shift %s): %v", p.MaterialCode, p.Shift, err)
+			errors = append(errors, errMsg)
+			logger.Error("[EXCEL] %s", errMsg)
 			continue
 		}
 
 		if existingPlan != nil {
-			// План существует — обновляем
+			// Plan exists - update it
 			err = database.UpdatePlan(existingPlan.PlanID, p.PlannedAmount, createdBy)
 			if err != nil {
 				errorCount++
-				errors = append(errors, fmt.Sprintf("Ошибка обновления %s (%s): %v", p.MaterialCode, p.Shift, err))
-				logger.Error("[EXCEL] Ошибка обновления плана: материал=%s, смена=%s, количество=%d, ошибка=%v",
-					p.MaterialCode, p.Shift, p.PlannedAmount, err)
+				errMsg := fmt.Sprintf("Error updating plan for %s (shift %s): %v", p.MaterialCode, p.Shift, err)
+				errors = append(errors, errMsg)
+				logger.Error("[EXCEL] %s", errMsg)
 			} else {
-				logger.Info("[EXCEL] Обновлён план: материал=%s, смена=%s, количество=%d, дата=%s",
-					p.MaterialCode, p.Shift, p.PlannedAmount, req.Date)
 				updateCount++
+				logger.Info("[EXCEL] Updated plan: material=%s, shift=%s, amount=%d, date=%s",
+					p.MaterialCode, p.Shift, p.PlannedAmount, req.Date)
 			}
 		} else {
-			// План не существует — создаём новый
+			// Plan does not exist - create new
 			_, err = database.CreatePlan(planDate, &p.Shift, material.MaterialID, p.PlannedAmount, createdBy)
 			if err != nil {
 				errorCount++
-				errors = append(errors, fmt.Sprintf("Ошибка создания %s (%s): %v", p.MaterialCode, p.Shift, err))
-				logger.Error("[EXCEL] Ошибка создания плана: материал=%s, смена=%s, количество=%d, ошибка=%v",
-					p.MaterialCode, p.Shift, p.PlannedAmount, err)
+				errMsg := fmt.Sprintf("Error creating plan for %s (shift %s): %v", p.MaterialCode, p.Shift, err)
+				errors = append(errors, errMsg)
+				logger.Error("[EXCEL] %s", errMsg)
 			} else {
-				logger.Info("[EXCEL] Создан план: материал=%s, смена=%s, количество=%d, дата=%s",
-					p.MaterialCode, p.Shift, p.PlannedAmount, req.Date)
 				successCount++
+				logger.Info("[EXCEL] Created plan: material=%s, shift=%s, amount=%d, date=%s",
+					p.MaterialCode, p.Shift, p.PlannedAmount, req.Date)
 			}
 		}
 	}

@@ -1,9 +1,26 @@
 {
-    "dbServer": "togprod.emc-tlt.tech",
+    "dbServer": "localhost",
     "dbPort": 1433,
     "dbUser": "sa",
-    "dbPassword": "Mount&Blade-2020",
-    "dbName": "emc_prod_dev",
+    "dbPassword": "YourStrongPassword123",
+    "dbName": "EMC_Production",
     "serverPort": 8080,
-    "debug": true
+    "debug": true,
+    "shifts": {
+        "1": {
+            "name": "1 смена",
+            "start": "06:00:00",
+            "end": "13:59:59"
+        },
+        "2": {
+            "name": "2 смена",
+            "start": "14:00:00",
+            "end": "21:59:59"
+        },
+        "3": {
+            "name": "3 смена",
+            "start": "22:00:00",
+            "end": "05:59:59"
+        }
+    }
 }

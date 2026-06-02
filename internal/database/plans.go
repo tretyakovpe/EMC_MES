@@ -487,25 +487,25 @@ func GetPlanByDateAndMaterial(planDate time.Time, shift string, materialID int) 
 	defer cancel()
 
 	query := `
-		SELECT 
-			p.PlanID,
-			p.PlanDate,
-			p.Shift,
-			p.MaterialID,
-			m.MaterialCode,
-			p.PlannedAmount,
-			p.Status,
-			p.CreatedAt,
-			p.CreatedBy,
-			p.UpdatedAt,
-			p.UpdatedBy,
-			dbo.GetActualProduction(p.MaterialID, p.PlanDate, p.Shift) as ActualAmount
-		FROM Plans p
-		JOIN materials m ON p.MaterialID = m.MaterialID
-		WHERE p.PlanDate = ? 
-		  AND p.Shift = ? 
-		  AND p.MaterialID = ?
-	`
+        SELECT 
+            p.PlanID,
+            p.PlanDate,
+            p.Shift,
+            p.MaterialID,
+            m.MaterialCode,
+            p.PlannedAmount,
+            p.Status,
+            p.CreatedAt,
+            p.CreatedBy,
+            p.UpdatedAt,
+            p.UpdatedBy,
+            dbo.GetActualProduction(p.MaterialID, p.PlanDate, p.Shift) as ActualAmount
+        FROM Plans p
+        JOIN materials m ON p.MaterialID = m.MaterialID
+        WHERE p.PlanDate = ? 
+          AND p.Shift = ? 
+          AND p.MaterialID = ?
+    `
 
 	var p Plan
 	var shiftVal sql.NullString
@@ -626,4 +626,51 @@ func GetPlansGroupedByDay(month string, materialID *int) ([]PlanDay, error) {
 	}
 
 	return result, nil
+}
+
+func GetPlansForDateAndLine(date, shift, lineName string) ([]Plan, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	query := `
+        SELECT 
+            p.PlanID,
+            p.PlanDate,
+            p.Shift,
+            p.MaterialID,
+            m.MaterialCode,
+            p.PlannedAmount,
+            p.Status
+        FROM Plans p
+        JOIN materials m ON p.MaterialID = m.MaterialID
+        JOIN LinesMaterials lm ON m.MaterialID = lm.MaterialID
+        WHERE p.PlanDate = ? 
+          AND p.Shift = ?
+          AND RTRIM(lm.LineName) = RTRIM(?)
+          AND p.Status = 'Активен'
+        ORDER BY m.MaterialCode
+    `
+
+	rows, err := DB.QueryContext(ctx, query, date, shift, lineName)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса планов: %w", err)
+	}
+	defer rows.Close()
+
+	var plans []Plan
+	for rows.Next() {
+		var p Plan
+		var shiftVal sql.NullString
+		err := rows.Scan(&p.PlanID, &p.PlanDate, &shiftVal, &p.MaterialID, &p.MaterialCode, &p.PlannedAmount, &p.Status)
+		if err != nil {
+			logger.Error("Ошибка сканирования плана: %v", err)
+			continue
+		}
+		if shiftVal.Valid {
+			p.Shift = &shiftVal.String
+		}
+		plans = append(plans, p)
+	}
+
+	return plans, nil
 }

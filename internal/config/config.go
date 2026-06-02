@@ -8,6 +8,14 @@ import (
 	"sync"
 )
 
+// ShiftConfig настройки смены
+type ShiftConfig struct {
+	Name  string `json:"name"`
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+// Config основная структура конфигурации
 type Config struct {
 	// Подключение к БД
 	DbServer   string `json:"dbServer"`
@@ -21,6 +29,9 @@ type Config struct {
 
 	// Режим отладки
 	Debug bool `json:"debug"`
+
+	// Настройки смен
+	Shifts map[string]ShiftConfig `json:"shifts"`
 }
 
 var (
@@ -29,7 +40,6 @@ var (
 )
 
 // LoadConfig загружает конфигурацию из config.json
-// configPath - опциональный параметр, путь к файлу конфигурации
 func LoadConfig(configPath ...string) error {
 	var err error
 	once.Do(func() {
@@ -43,19 +53,15 @@ func LoadConfig(configPath ...string) error {
 }
 
 func load(configPath string) (*Config, error) {
-	// Если путь не указан, ищем в стандартных местах
 	if configPath == "" {
-		// Получаем путь к исполняемому файлу
 		exePath, err := os.Executable()
 		if err != nil {
 			return nil, fmt.Errorf("не удалось получить путь к программе: %w", err)
 		}
 		appDir := filepath.Dir(exePath)
 
-		// Пробуем config/config.json
 		configPath = filepath.Join(appDir, "config", "config.json")
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			// Пробуем config.json в корне
 			configPath = filepath.Join(appDir, "config.json")
 			if _, err := os.Stat(configPath); os.IsNotExist(err) {
 				return nil, fmt.Errorf("config.json не найден")
@@ -63,16 +69,23 @@ func load(configPath string) (*Config, error) {
 		}
 	}
 
-	// Читаем файл
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка чтения config.json: %w", err)
 	}
 
-	// Парсим JSON
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга config.json: %w", err)
+	}
+
+	// Устанавливаем смены по умолчанию, если не заданы
+	if cfg.Shifts == nil {
+		cfg.Shifts = map[string]ShiftConfig{
+			"1": {Name: "1 смена", Start: "06:00:00", End: "13:59:59"},
+			"2": {Name: "2 смена", Start: "14:00:00", End: "21:59:59"},
+			"3": {Name: "3 смена", Start: "22:00:00", End: "05:59:59"},
+		}
 	}
 
 	return &cfg, nil
@@ -90,4 +103,20 @@ func (c *Config) GetConnectionString() string {
 	}
 	return fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d;database=%s;encrypt=disable",
 		c.DbServer, c.DbUser, c.DbPassword, c.DbPort, c.DbName)
+}
+
+// GetShiftBounds возвращает границы смены
+func (c *Config) GetShiftBounds(shift string) (start, end string) {
+	if s, ok := c.Shifts[shift]; ok {
+		return s.Start, s.End
+	}
+	// Значения по умолчанию
+	switch shift {
+	case "1":
+		return "06:30:00", "14:59:59"
+	case "2":
+		return "15:00:00", "23:29:59"
+	default:
+		return "23:30:00", "06:29:59"
+	}
 }
