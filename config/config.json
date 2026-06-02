@@ -1,9 +1,9 @@
 {
-    "dbServer": "localhost",
+    "dbServer": "togprod.emc-tlt.tech",
     "dbPort": 1433,
     "dbUser": "sa",
-    "dbPassword": "YourStrongPassword123",
-    "dbName": "EMC_Production",
+    "dbPassword": "Mount&Blade-2020",
+    "dbName": "emc_prod_dev",
     "serverPort": 8080,
     "debug": true,
     "shifts": {
