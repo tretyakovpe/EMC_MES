@@ -1,0 +1,327 @@
+// ========== МОДУЛЬ ОТГРУЗОК ==========
+
+const ShipmentsModule = {
+    currentShipment: null,
+    shipmentItems: [],
+    shipments: [],
+
+    async render(container) {
+        container.innerHTML = `
+            <div class="logistics-container">
+                <div class="shipments-layout">
+                    <!-- Левая панель: список отгрузок -->
+                    <div class="shipments-list-panel">
+                        <div class="panel-header">
+                            <h3>🚛 Отгрузки</h3>
+                            <button id="create-shipment-btn" class="btn-primary">➕ Новая отгрузка</button>
+                        </div>
+                        <div class="shipments-grid" id="shipments-list">
+                            <div class="loading">Загрузка...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Правая панель: создание отгрузки -->
+                    <div class="shipment-editor-panel" id="shipment-editor" style="display: none;">
+                        <div class="panel-header">
+                            <h3>📦 Сборка отгрузки</h3>
+                            <button id="close-editor-btn" class="btn-close">✕</button>
+                        </div>
+                        <div class="shipment-number-input">
+                            <label>Номер накладной:</label>
+                            <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
+                        </div>
+                        <div class="shipment-items-list" id="shipment-items-list">
+                            <div class="empty-items">Добавьте материалы</div>
+                        </div>
+                        <div class="shipment-actions">
+                            <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Панель выбора материалов -->
+                    <div id="materials-picker" class="materials-picker" style="display: none;">
+                        <div class="picker-content">
+                            <div class="picker-header">
+                                <h4>Выберите материал</h4>
+                                <button class="close-picker-btn">✕</button>
+                            </div>
+                            <div class="materials-list" id="materials-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        await this.loadShipments();
+        this.attachEvents();
+    },
+
+    async loadShipments() {
+        try {
+            // Запрашиваем только незавершённые отгрузки (done = false)
+            const shipments = await API.getShipments({ done: false });
+            this.shipments = shipments;
+            this.renderShipmentsList();
+        } catch (error) {
+            console.error('Ошибка загрузки отгрузок:', error);
+            const container = document.getElementById('shipments-list');
+            if (container) {
+                container.innerHTML = '<div class="empty-state">❌ Ошибка загрузки отгрузок</div>';
+            }
+        }
+    },
+    renderShipmentsList() {
+        const container = document.getElementById('shipments-list');
+        if (!container) return;
+
+        if (this.shipments.length === 0) {
+            container.innerHTML = '<div class="empty-state">Нет отгрузок за сегодня</div>';
+            return;
+        }
+
+        container.innerHTML = this.shipments.map(s => `
+            <div class="shipment-card ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}" 
+                 data-id="${s.shipmentId}"
+                 onclick="ShipmentsModule.viewShipment(${s.shipmentId})">
+                <div class="shipment-header">
+                    <span class="shipment-number">№${s.number || s.shipmentId}</span>
+                    <span class="shipment-status">${this.getStatusText(s)}</span>
+                </div>
+                <div class="shipment-date">${this.formatDate(s.date)}</div>
+                <div class="shipment-progress">
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div>
+                    <span>${s.progress}%</span>
+                </div>
+                ${!s.done ? `<button class="delete-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.deleteShipment(${s.shipmentId})">🗑</button>` : ''}
+            </div>
+        `).join('');
+    },
+
+    getStatusText(shipment) {
+        if (shipment.done) return '✅ Отгружена';
+        if (shipment.completed) return '📦 Готова';
+        return '🔄 В работе';
+    },
+
+    formatDate(dateStr) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+        return dateStr;
+    },
+
+    attachEvents() {
+        const createBtn = document.getElementById('create-shipment-btn');
+        if (createBtn) {
+            createBtn.onclick = () => this.showMaterialsPicker();
+        }
+
+        const closeBtn = document.getElementById('close-editor-btn');
+        if (closeBtn) {
+            closeBtn.onclick = () => this.closeEditor();
+        }
+
+        const saveBtn = document.getElementById('save-shipment-btn');
+        if (saveBtn) {
+            saveBtn.onclick = () => this.saveShipment();
+        }
+
+        const closePickerBtn = document.querySelector('.close-picker-btn');
+        if (closePickerBtn) {
+            closePickerBtn.onclick = () => this.closePicker();
+        }
+    },
+
+    async showMaterialsPicker() {
+        try {
+            // Получаем доступные коробки (со статусом "Произведена")
+            const boxes = await API.getBoxes({ status: 'Произведена', limit: 100 });
+
+            // Группируем по материалам
+            const materialsMap = new Map();
+            for (const box of boxes) {
+                if (!materialsMap.has(box.materialCode)) {
+                    materialsMap.set(box.materialCode, {
+                        materialId: box.materialId,
+                        materialCode: box.materialCode,
+                        availableBoxes: 0,
+                        availableAmount: 0
+                    });
+                }
+                const m = materialsMap.get(box.materialCode);
+                m.availableBoxes++;
+                m.availableAmount += box.amount;
+            }
+
+            const materials = Array.from(materialsMap.values());
+            const materialsList = document.getElementById('materials-list');
+            const picker = document.getElementById('materials-picker');
+
+            if (materials.length === 0) {
+                materialsList.innerHTML = '<div class="empty-state">Нет доступных коробок для отгрузки</div>';
+            } else {
+                materialsList.innerHTML = materials.map(m => `
+                    <div class="material-item" data-material-id="${m.materialId}" data-material-code="${m.materialCode}" data-available="${m.availableBoxes}">
+                        <div class="material-info">
+                            <strong>${this.escapeHtml(m.materialCode)}</strong>
+                            <span>📦 ${m.availableBoxes} коробок</span>
+                        </div>
+                        <button class="add-material-btn">➕ Добавить</button>
+                    </div>
+                `).join('');
+            }
+
+            picker.style.display = 'flex';
+
+            materialsList.querySelectorAll('.add-material-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    const item = btn.closest('.material-item');
+                    const materialId = parseInt(item.dataset.materialId);
+                    const materialCode = item.dataset.materialCode;
+                    const maxBoxes = parseInt(item.dataset.available);
+
+                    const count = prompt(`Сколько коробок ${materialCode} добавить? (доступно: ${maxBoxes})`, '1');
+                    if (count && parseInt(count) > 0) {
+                        this.addToShipment(materialId, materialCode, parseInt(count));
+                    }
+                };
+            });
+        } catch (error) {
+            console.error('Ошибка загрузки материалов:', error);
+            alert('Ошибка загрузки доступных материалов');
+        }
+    },
+
+    addToShipment(materialId, materialCode, boxesCount) {
+        const existing = this.shipmentItems.find(i => i.materialId === materialId);
+        if (existing) {
+            existing.boxes += boxesCount;
+        } else {
+            this.shipmentItems.push({
+                materialId: materialId,
+                materialCode: materialCode,
+                boxes: boxesCount
+            });
+        }
+        this.renderShipmentItems();
+        this.closePicker();
+    },
+
+    renderShipmentItems() {
+        const container = document.getElementById('shipment-items-list');
+        const editor = document.getElementById('shipment-editor');
+
+        if (this.shipmentItems.length === 0) {
+            container.innerHTML = '<div class="empty-items">Добавьте материалы</div>';
+            editor.style.display = 'none';
+            return;
+        }
+
+        editor.style.display = 'flex';
+
+        container.innerHTML = this.shipmentItems.map((item, idx) => `
+            <div class="shipment-item-card">
+                <div class="item-info">
+                    <strong>${this.escapeHtml(item.materialCode)}</strong>
+                    <span>📦 ${item.boxes} кор.</span>
+                </div>
+                <div class="item-actions">
+                    <button class="item-delete" onclick="ShipmentsModule.removeShipmentItem(${idx})">🗑</button>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    removeShipmentItem(index) {
+        this.shipmentItems.splice(index, 1);
+        this.renderShipmentItems();
+    },
+
+    async saveShipment() {
+        if (this.shipmentItems.length === 0) {
+            alert('Добавьте хотя бы один материал');
+            return;
+        }
+
+        const shipmentNumber = document.getElementById('shipment-number')?.value.trim();
+        if (!shipmentNumber) {
+            alert('Введите номер накладной');
+            return;
+        }
+
+        const details = this.shipmentItems.map(item => ({
+            materialId: item.materialId,
+            boxes: item.boxes,
+            amount: item.boxes * 50  // пример: 50 деталей в коробке
+        }));
+
+        try {
+            const result = await API.createShipment({
+                number: parseInt(shipmentNumber),
+                date: new Date().toISOString().slice(0, 10),
+                details: details
+            });
+
+            alert(`Отгрузка №${shipmentNumber} создана`);
+            this.shipmentItems = [];
+            this.renderShipmentItems();
+            await this.loadShipments();
+            this.closeEditor();
+        } catch (error) {
+            console.error('Ошибка создания отгрузки:', error);
+            alert('Ошибка создания отгрузки: ' + error.message);
+        }
+    },
+
+    async viewShipment(shipmentId) {
+        try {
+            const shipment = await API.getShipmentById(shipmentId);
+            let detailsText = '';
+            if (shipment.details && shipment.details.length) {
+                detailsText = shipment.details.map(d =>
+                    `${d.materialCode}: ${d.scannedBoxes}/${d.boxes} кор.`
+                ).join('\n');
+            }
+            alert(`Отгрузка №${shipment.number || shipment.shipmentId}\nДата: ${this.formatDate(shipment.date)}\nСтатус: ${this.getStatusText(shipment)}\nПрогресс: ${shipment.progress}%\n\nПозиции:\n${detailsText || 'нет'}`);
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Ошибка загрузки деталей отгрузки');
+        }
+    },
+
+    async deleteShipment(shipmentId) {
+        if (!confirm('Удалить отгрузку?')) return;
+        try {
+            await API.deleteShipment(shipmentId);
+            await this.loadShipments();
+        } catch (error) {
+            console.error('Ошибка удаления:', error);
+            alert('Ошибка удаления: ' + error.message);
+        }
+    },
+
+    closeEditor() {
+        this.shipmentItems = [];
+        this.renderShipmentItems();
+        document.getElementById('shipment-editor').style.display = 'none';
+        document.getElementById('shipment-number').value = '';
+    },
+
+    closePicker() {
+        document.getElementById('materials-picker').style.display = 'none';
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function (m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+};
+
+// Глобальные функции для onclick
+window.ShipmentsModule = ShipmentsModule;
