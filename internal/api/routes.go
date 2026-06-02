@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -48,6 +49,7 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/plans/volumes", handlePlannedVolumes)
 	mux.HandleFunc("/api/plans/status", handleUpdatePlansStatus)
 	mux.HandleFunc("/api/plans/", handlePlanByID)
+	mux.HandleFunc("/api/plans/month", handleGetPlansByMonth)
 
 	mux.HandleFunc("/api/shipments", handleShipments)
 	mux.HandleFunc("/api/shipments/", handleShipmentByID)
@@ -62,13 +64,14 @@ func SetupRoutes() *http.ServeMux {
 
 	mux.HandleFunc("/api/events", handleEvent)
 
+	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
+
 	return mux
 }
 
 // serveStatic раздаёт статические файлы с правильными MIME-типами
 func serveStatic(w http.ResponseWriter, r *http.Request) {
 	// Убираем префикс /static/
-	// Пример: /static/js/core/api.js -> js/core/api.js
 	path := strings.TrimPrefix(r.URL.Path, "/static/")
 
 	// Защита от path traversal
@@ -80,19 +83,26 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	fullPath := filepath.Join("./web/static", path)
 
 	// Проверяем существование файла
-	if !fileExists(fullPath) {
+	info, err := os.Stat(fullPath)
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Определяем MIME-тип по расширению
+	// Если это директория — отдаём 404
+	if info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Определяем MIME-тип по расширению (явно, без автоопределения)
 	ext := filepath.Ext(fullPath)
 	switch ext {
 	case ".css":
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	case ".js":
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-	case ".html":
+	case ".html", ".htm":
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	case ".json":
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -100,42 +110,44 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 	case ".jpg", ".jpeg":
 		w.Header().Set("Content-Type", "image/jpeg")
+	case ".svg":
+		w.Header().Set("Content-Type", "image/svg+xml")
 	case ".ico":
 		w.Header().Set("Content-Type", "image/x-icon")
+	case ".woff":
+		w.Header().Set("Content-Type", "font/woff")
+	case ".woff2":
+		w.Header().Set("Content-Type", "font/woff2")
 	default:
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
 
-	// Отключаем X-Content-Type-Options для статики
-	w.Header().Del("X-Content-Type-Options")
+	// Отключаем MIME sniffing (важно для Windows)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// Отключаем кэширование для статики
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 
 	http.ServeFile(w, r, fullPath)
 }
 
-// fileExists проверяет существование файла
-func fileExists(path string) bool {
-	info, err := http.Dir(".").Open(path)
-	if err != nil {
-		return false
-	}
-	info.Close()
-	return true
-}
-
 func serveProduction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Del("X-Content-Type-Options")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	http.ServeFile(w, r, "./web/static/production.html")
 }
 
 func serveLogistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Del("X-Content-Type-Options")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	http.ServeFile(w, r, "./web/static/logistics.html")
 }
 
 func serveQuality(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Del("X-Content-Type-Options")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	http.ServeFile(w, r, "./web/static/quality.html")
 }

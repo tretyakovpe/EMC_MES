@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -148,30 +149,25 @@ func GetPlans(planDateFrom, planDateTo *time.Time, materialID *int, shift *strin
 		WHERE 1=1
 	`
 	args := []interface{}{}
-	argIdx := 1
 
 	if planDateFrom != nil {
-		query += fmt.Sprintf(" AND p.PlanDate >= @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *planDateFrom))
-		argIdx++
+		query += " AND p.PlanDate >= ?"
+		args = append(args, *planDateFrom)
 	}
 	if planDateTo != nil {
-		query += fmt.Sprintf(" AND p.PlanDate <= @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *planDateTo))
-		argIdx++
+		query += " AND p.PlanDate <= ?"
+		args = append(args, *planDateTo)
 	}
 	if materialID != nil {
-		query += fmt.Sprintf(" AND p.MaterialID = @p%d", argIdx)
-		args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *materialID))
-		argIdx++
+		query += " AND p.MaterialID = ?"
+		args = append(args, *materialID)
 	}
 	if shift != nil && *shift != "" {
 		if *shift == "total" {
 			query += " AND p.Shift IS NULL"
 		} else {
-			query += fmt.Sprintf(" AND p.Shift = @p%d", argIdx)
-			args = append(args, sql.Named(fmt.Sprintf("p%d", argIdx), *shift))
-			argIdx++
+			query += " AND p.Shift = ?"
+			args = append(args, *shift)
 		}
 	}
 
@@ -301,9 +297,10 @@ func CreatePlan(planDate time.Time, shift *string, materialID int, plannedAmount
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Используем ? вместо именованных параметров
 	query := `
-		INSERT INTO Plans (PlanDate, Shift, MaterialID, PlannedAmount, Status, CreatedBy)
-		VALUES (@planDate, @shift, @materialID, @plannedAmount, 'Активен', @createdBy);
+		INSERT INTO Plans (PlanDate, Shift, MaterialID, PlannedAmount, Status, CreatedBy, CreatedAt)
+		VALUES (?, ?, ?, ?, 'Активен', ?, GETDATE());
 		SELECT SCOPE_IDENTITY();
 	`
 
@@ -314,11 +311,11 @@ func CreatePlan(planDate time.Time, shift *string, materialID int, plannedAmount
 
 	var planID int
 	err := DB.QueryRowContext(ctx, query,
-		sql.Named("planDate", planDate),
-		sql.Named("shift", shiftParam),
-		sql.Named("materialID", materialID),
-		sql.Named("plannedAmount", plannedAmount),
-		sql.Named("createdBy", createdBy),
+		planDate,
+		shiftParam,
+		materialID,
+		plannedAmount,
+		createdBy,
 	).Scan(&planID)
 
 	if err != nil {
@@ -326,7 +323,8 @@ func CreatePlan(planDate time.Time, shift *string, materialID int, plannedAmount
 	}
 
 	logger.Info("[DB] Создан план: MaterialID=%d, Date=%s, Amount=%d", materialID, planDate.Format("2006-01-02"), plannedAmount)
-	return int(planID), nil
+	return planID, nil
+
 }
 
 // UpdatePlan обновляет существующий план (перезапись)
@@ -336,21 +334,22 @@ func UpdatePlan(planID int, plannedAmount int, updatedBy string) error {
 
 	query := `
 		UPDATE Plans 
-		SET PlannedAmount = @plannedAmount,
+		SET PlannedAmount = ?,
 		    UpdatedAt = GETDATE(),
-		    UpdatedBy = @updatedBy,
+		    UpdatedBy = ?,
 		    Status = CASE 
-		        WHEN dbo.GetActualProduction(MaterialID, PlanDate, Shift) >= @plannedAmount THEN 'Выполнен'
+		        WHEN dbo.GetActualProduction(MaterialID, PlanDate, Shift) >= ? THEN 'Выполнен'
 		        WHEN dbo.GetActualProduction(MaterialID, PlanDate, Shift) > 0 THEN 'В работе'
 		        ELSE 'Активен'
 		    END
-		WHERE PlanID = @planID
+		WHERE PlanID = ?
 	`
 
 	result, err := DB.ExecContext(ctx, query,
-		sql.Named("planID", planID),
-		sql.Named("plannedAmount", plannedAmount),
-		sql.Named("updatedBy", updatedBy),
+		plannedAmount,
+		updatedBy,
+		plannedAmount,
+		planID,
 	)
 	if err != nil {
 		return fmt.Errorf("ошибка обновления плана: %w", err)
@@ -374,13 +373,13 @@ func DeletePlan(planID int, updatedBy string) error {
 		UPDATE Plans 
 		SET Status = 'Отменён',
 		    UpdatedAt = GETDATE(),
-		    UpdatedBy = @updatedBy
-		WHERE PlanID = @planID AND Status IN ('Активен', 'В работе')
+		    UpdatedBy = ?
+		WHERE PlanID = ? AND Status IN ('Активен', 'В работе')
 	`
 
 	result, err := DB.ExecContext(ctx, query,
-		sql.Named("planID", planID),
-		sql.Named("updatedBy", updatedBy),
+		updatedBy,
+		planID,
 	)
 	if err != nil {
 		return fmt.Errorf("ошибка отмены плана: %w", err)
@@ -480,4 +479,151 @@ func UpdatePlansStatus(planDate *time.Time) error {
 
 	logger.Info("[DB] Обновлены статусы планов")
 	return nil
+}
+
+// GetPlanByDateAndMaterial возвращает план по дате, смене и материалу
+func GetPlanByDateAndMaterial(planDate time.Time, shift string, materialID int) (*Plan, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT 
+			p.PlanID,
+			p.PlanDate,
+			p.Shift,
+			p.MaterialID,
+			m.MaterialCode,
+			p.PlannedAmount,
+			p.Status,
+			p.CreatedAt,
+			p.CreatedBy,
+			p.UpdatedAt,
+			p.UpdatedBy,
+			dbo.GetActualProduction(p.MaterialID, p.PlanDate, p.Shift) as ActualAmount
+		FROM Plans p
+		JOIN materials m ON p.MaterialID = m.MaterialID
+		WHERE p.PlanDate = ? 
+		  AND p.Shift = ? 
+		  AND p.MaterialID = ?
+	`
+
+	var p Plan
+	var shiftVal sql.NullString
+	var createdBy sql.NullString
+	var updatedAt sql.NullTime
+	var updatedBy sql.NullString
+
+	err := DB.QueryRowContext(ctx, query, planDate, shift, materialID).Scan(
+		&p.PlanID,
+		&p.PlanDate,
+		&shiftVal,
+		&p.MaterialID,
+		&p.MaterialCode,
+		&p.PlannedAmount,
+		&p.Status,
+		&p.CreatedAt,
+		&createdBy,
+		&updatedAt,
+		&updatedBy,
+		&p.ActualAmount,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("ошибка поиска плана: %w", err)
+	}
+
+	if shiftVal.Valid {
+		p.Shift = &shiftVal.String
+	}
+	if createdBy.Valid {
+		p.CreatedBy = &createdBy.String
+	}
+	if updatedAt.Valid {
+		p.UpdatedAt = &updatedAt.Time
+	}
+	if updatedBy.Valid {
+		p.UpdatedBy = &updatedBy.String
+	}
+
+	return &p, nil
+}
+
+// PlanDay группировка планов по дню
+type PlanDay struct {
+	Date   string `json:"date"`
+	Shift1 int    `json:"shift1"`
+	Shift2 int    `json:"shift2"`
+	Shift3 int    `json:"shift3"`
+	Total  int    `json:"total"`
+}
+
+// GetPlansGroupedByDay возвращает планы сгруппированные по дням и сменам
+func GetPlansGroupedByDay(month string, materialID *int) ([]PlanDay, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Парсим месяц
+	year, _ := strconv.Atoi(month[:4])
+	mon, _ := strconv.Atoi(month[5:7])
+	firstDay := time.Date(year, time.Month(mon), 1, 0, 0, 0, 0, time.Local)
+	lastDay := firstDay.AddDate(0, 1, -1)
+
+	query := `
+        SELECT 
+            p.PlanDate,
+            ISNULL(MAX(CASE WHEN p.Shift = '1' THEN p.PlannedAmount ELSE 0 END), 0) as Shift1,
+            ISNULL(MAX(CASE WHEN p.Shift = '2' THEN p.PlannedAmount ELSE 0 END), 0) as Shift2,
+            ISNULL(MAX(CASE WHEN p.Shift = '3' THEN p.PlannedAmount ELSE 0 END), 0) as Shift3
+        FROM Plans p
+        WHERE p.PlanDate BETWEEN ? AND ?
+    `
+	args := []interface{}{firstDay, lastDay}
+
+	if materialID != nil {
+		query += " AND p.MaterialID = ?"
+		args = append(args, *materialID)
+	}
+
+	query += " GROUP BY p.PlanDate ORDER BY p.PlanDate"
+
+	rows, err := DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса планов: %w", err)
+	}
+	defer rows.Close()
+
+	// Создаём карту для быстрого доступа
+	plansMap := make(map[string]PlanDay)
+	for rows.Next() {
+		var date time.Time
+		var p PlanDay
+		err := rows.Scan(&date, &p.Shift1, &p.Shift2, &p.Shift3)
+		if err != nil {
+			continue
+		}
+		p.Date = date.Format("2006-01-02")
+		p.Total = p.Shift1 + p.Shift2 + p.Shift3
+		plansMap[p.Date] = p
+	}
+
+	// Генерируем все дни месяца и заполняем из карты
+	result := []PlanDay{}
+	for d := firstDay; !d.After(lastDay); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		if plan, exists := plansMap[dateStr]; exists {
+			result = append(result, plan)
+		} else {
+			result = append(result, PlanDay{
+				Date:   dateStr,
+				Shift1: 0,
+				Shift2: 0,
+				Shift3: 0,
+				Total:  0,
+			})
+		}
+	}
+
+	return result, nil
 }

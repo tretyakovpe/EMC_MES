@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,6 +19,15 @@ type PlanRequest struct {
 	MaterialID    int     `json:"materialId"`
 	MaterialCode  string  `json:"materialCode"`
 	PlannedAmount int     `json:"plannedAmount"`
+}
+
+// PlanDayResponse структура для отображения плана на день
+type PlanDayResponse struct {
+	Date   string `json:"date"`
+	Shift1 int    `json:"shift1"` // 1 смена
+	Shift2 int    `json:"shift2"` // 2 смена
+	Shift3 int    `json:"shift3"` // 3 смена
+	Total  int    `json:"total"`
 }
 
 // PlanResponse структура ответа
@@ -359,4 +369,135 @@ func handleUpdatePlansStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "ok",
 	})
+}
+
+// ExcelPlansRequest структура запроса из Excel
+type ExcelPlansRequest struct {
+	Date  string `json:"date"`
+	Plans []struct {
+		MaterialCode  string `json:"materialCode"`
+		Shift         string `json:"shift"`
+		PlannedAmount int    `json:"plannedAmount"`
+	} `json:"plans"`
+}
+
+// handlePlansFromExcel обрабатывает загрузку планов из Excel
+func handlePlansFromExcel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ExcelPlansRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Error("API /api/plans/from-excel: ошибка парсинга: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	planDate, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		logger.Error("API /api/plans/from-excel: ошибка парсинга даты: %v", err)
+		http.Error(w, "Invalid date format", http.StatusBadRequest)
+		return
+	}
+
+	createdBy := r.Header.Get("X-User")
+	if createdBy == "" {
+		createdBy = "excel_upload"
+	}
+
+	successCount := 0
+	updateCount := 0
+	errorCount := 0
+	errors := []string{}
+
+	for _, p := range req.Plans {
+		// Получаем MaterialID по коду материала
+		material, err := database.GetMaterialByCode(p.MaterialCode)
+		if err != nil || material == nil {
+			errorCount++
+			errors = append(errors, fmt.Sprintf("Материал %s не найден", p.MaterialCode))
+			logger.Error("[EXCEL] Материал %s не найден в БД", p.MaterialCode)
+			continue
+		}
+
+		// Проверяем, существует ли уже план на эту дату, смену и материал
+		existingPlan, err := database.GetPlanByDateAndMaterial(planDate, p.Shift, material.MaterialID)
+		if err != nil {
+			errorCount++
+			errors = append(errors, fmt.Sprintf("Ошибка проверки существующего плана %s (%s): %v", p.MaterialCode, p.Shift, err))
+			logger.Error("[EXCEL] Ошибка проверки плана: материал=%s, смена=%s, ошибка=%v", p.MaterialCode, p.Shift, err)
+			continue
+		}
+
+		if existingPlan != nil {
+			// План существует — обновляем
+			err = database.UpdatePlan(existingPlan.PlanID, p.PlannedAmount, createdBy)
+			if err != nil {
+				errorCount++
+				errors = append(errors, fmt.Sprintf("Ошибка обновления %s (%s): %v", p.MaterialCode, p.Shift, err))
+				logger.Error("[EXCEL] Ошибка обновления плана: материал=%s, смена=%s, количество=%d, ошибка=%v",
+					p.MaterialCode, p.Shift, p.PlannedAmount, err)
+			} else {
+				logger.Info("[EXCEL] Обновлён план: материал=%s, смена=%s, количество=%d, дата=%s",
+					p.MaterialCode, p.Shift, p.PlannedAmount, req.Date)
+				updateCount++
+			}
+		} else {
+			// План не существует — создаём новый
+			_, err = database.CreatePlan(planDate, &p.Shift, material.MaterialID, p.PlannedAmount, createdBy)
+			if err != nil {
+				errorCount++
+				errors = append(errors, fmt.Sprintf("Ошибка создания %s (%s): %v", p.MaterialCode, p.Shift, err))
+				logger.Error("[EXCEL] Ошибка создания плана: материал=%s, смена=%s, количество=%d, ошибка=%v",
+					p.MaterialCode, p.Shift, p.PlannedAmount, err)
+			} else {
+				logger.Info("[EXCEL] Создан план: материал=%s, смена=%s, количество=%d, дата=%s",
+					p.MaterialCode, p.Shift, p.PlannedAmount, req.Date)
+				successCount++
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":       "ok",
+		"createdCount": successCount,
+		"updatedCount": updateCount,
+		"errorCount":   errorCount,
+		"errors":       errors,
+	})
+}
+
+// handleGetPlansByMonth возвращает планы с группировкой по дням и сменам
+func handleGetPlansByMonth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	month := r.URL.Query().Get("month") // 2026-06
+	if month == "" {
+		month = time.Now().Format("2006-01")
+	}
+
+	materialIDStr := r.URL.Query().Get("materialId")
+	var materialID *int
+	if materialIDStr != "" {
+		id, err := strconv.Atoi(materialIDStr)
+		if err == nil {
+			materialID = &id
+		}
+	}
+
+	plans, err := database.GetPlansGroupedByDay(month, materialID)
+	if err != nil {
+		logger.Error("API /api/plans/month: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(plans)
 }

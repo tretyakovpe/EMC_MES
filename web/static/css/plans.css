@@ -1,0 +1,197 @@
+/* ============================================ */
+/* ПЛАНИРОВАНИЕ (ПЛАНЫ)                         */
+/* ============================================ */
+
+.plans-container {
+    padding: 20px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    background: #c0c0c0;
+}
+
+.plans-filter-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #d4d4d4;
+    border-radius: 4px;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-group label {
+    font-size: 11px;
+    color: #333;
+    text-transform: uppercase;
+}
+
+.filter-input {
+    padding: 8px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #e8e8e8;
+}
+
+.plans-table-wrapper {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #999;
+    border-radius: 4px;
+}
+
+.plans-table {
+    border-collapse: collapse;
+    min-width: 100%;
+    font-size: 13px;
+}
+
+.plans-table th {
+    background: #cc0000;
+    color: #fff;
+    padding: 3px;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #990000;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.plans-table td {
+    padding: 2px;
+    border: 1px solid #ccc;
+    text-align: center;
+}
+
+.plans-table .material-cell {
+    background: #e8e8e8;
+    font-weight: bold;
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: #d4d4d4;
+    z-index: 5;
+}
+
+.plans-table .total-cell {
+    background: #e8e8e8;
+    font-weight: bold;
+}
+
+.plans-table th.date-group {
+    background: #990000;
+    text-align: center;
+    border-right: 1px solid #660000;
+}
+
+.plans-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+}
+
+.plans-table td.material-cell {
+    position: sticky;
+    left: 0;
+    background: #d4d4d4;
+    z-index: 10;
+}
+
+.day-total-cell, .month-total-cell {
+    background: #e8e8e8;
+    font-weight: bold;
+}
+
+.month-total-cell {
+    background: #d4d4d4;
+    position: sticky;
+    right: 0;
+}
+
+.plan-input {
+    width: 36px;
+    padding: 2px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.plan-input:focus {
+    outline: none;
+    border-color: #cc0000;
+    box-shadow: 0 0 0 2px rgba(204, 0, 0, 0.2);
+}
+
+.btn-primary {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #990000;
+    transform: translateY(-1px);
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-success:hover {
+    background: #1e7e34;
+    transform: translateY(-1px);
+}
+
+.btn-success:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+/* Стили для заголовков дней */
+.date-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.date-header:hover {
+    background: #660000;
+    filter: brightness(1.1);
+}
+
+.expand-icon {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 10px;
+}
+
+/* Свёрнутая ячейка итого */
+.day-total-cell.collapsed {
+    cursor: pointer;
+    background: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+}
+
+.day-total-cell.collapsed:hover {
+    background: #e0e0e0;
+}
