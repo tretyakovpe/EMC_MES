@@ -25,7 +25,7 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/production", serveProduction)
 	mux.HandleFunc("/logistics", serveLogistics)
 	mux.HandleFunc("/quality", serveQuality)
-	mux.HandleFunc("/", serveProduction)
+	mux.HandleFunc("/", serveIndex)
 
 	// WebSocket
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +137,15 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 
 	http.ServeFile(w, r, fullPath)
 }
-
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Del("X-Content-Type-Options")
+		http.ServeFile(w, r, "./web/static/index.html")
+		return
+	}
+	http.NotFound(w, r)
+}
 func serveProduction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

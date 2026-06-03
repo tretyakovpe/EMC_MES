@@ -98,6 +98,13 @@ func handleEvent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		handleLineStatusEvent(data)
+	case "plan_updated":
+		var data map[string]interface{}
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			logger.Error("API /api/events: ошибка парсинга plan_updated: %v", err)
+			return
+		}
+		handlePlanUpdated(data)
 
 	default:
 		logger.Warn("API /api/events: неизвестный тип события %s", event.Type)
@@ -140,6 +147,15 @@ func handlePartEvent(data PartEvent, isGood bool) {
 	// Отправляем событие всем подключённым WebSocket клиентам
 	if globalHub != nil {
 		globalHub.BroadcastPartProduced(data.Line, data.Material, data.Counter, data.BoxVolume, isGood)
+	}
+}
+
+// handlePlanUpdated отправляет сообщение клиентам для обновления сменного задания
+func handlePlanUpdated(data map[string]interface{}) {
+	logger.Info("Событие: обновлён план ID=%v", data["planId"])
+
+	if globalHub != nil {
+		globalHub.Broadcast("plan_updated", data)
 	}
 }
 

@@ -75,7 +75,7 @@ class WorkshopScreen {
             card.className = `line-card ${isSelected ? 'selected' : ''}`;
             card.dataset.line = name;
             card.innerHTML = `
-                <div class="line-header">
+                <div class="line-header" data-line="${name}" style="cursor:pointer">
                     <div class="line-name">${this.escapeHtml(name)}</div>
                     <div class="line-status ${statusClass}">${statusText}</div>
                 </div>
@@ -111,6 +111,14 @@ class WorkshopScreen {
             });
 
             grid.appendChild(card);
+
+            const header = card.querySelector('.line-header');
+            if (header) {
+                header.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.location.href = `/production/shiftplan/${name}`;
+                });
+            }
         }
 
         this.attachStatusButtonHandlers();
@@ -318,7 +326,7 @@ class WorkshopScreen {
             line.currentCount = data.counter;
             line.maxCount = data.boxVolume;
         }
-            this.renderLines();
+        this.renderLines();
     }
 
     animateLine(lineName, type) {
