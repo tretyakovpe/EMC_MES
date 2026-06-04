@@ -1,0 +1,116 @@
+.warehouse-container {
+    padding: 20px;
+    background: #c0c0c0;
+    min-height: calc(100vh - 56px);
+    overflow-x: auto;
+}
+
+.warehouse-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.warehouse-aisle {
+    background: repeating-linear-gradient(
+        45deg,
+        #a0a0a0,
+        #a0a0a0 20px,
+        #b0b0b0 20px,
+        #b0b0b0 40px
+    );
+    margin: 10px 0;
+}
+
+.stack-card {
+    background: #2a2a2a;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    position: relative;
+}
+
+.stack-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+}
+
+.stack-card.empty {
+    background: #4a4a4a;
+    opacity: 0.6;
+    cursor: default;
+}
+
+.stack-card.empty:hover {
+    transform: none;
+}
+
+.stack-material {
+    font-weight: bold;
+    font-size: 14px;
+    color: #cc0000;
+    margin-bottom: 8px;
+    text-align: center;
+    word-break: break-word;
+}
+
+.stack-tank {
+    width: 80%;
+    height: 100px;
+    background: #1a1a1a;
+    border: 2px solid #555;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.stack-water {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(180deg, #28a745, #1e7e34);
+    transition: height 0.3s ease;
+}
+
+.stack-stats {
+    font-size: 11px;
+    color: #ccc;
+    text-align: center;
+    margin-top: 8px;
+}
+
+.stack-stats div {
+    margin: 2px 0;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .warehouse-row {
+        gap: 8px;
+    }
+    
+    .stack-card {
+        width: 120px !important;
+        height: 180px !important;
+    }
+    
+    .stack-tank {
+        height: 70px;
+    }
+    
+    .stack-material {
+        font-size: 10px;
+    }
+    
+    .stack-stats {
+        font-size: 9px;
+    }
+}

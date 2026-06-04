@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,6 +38,20 @@ type BoxesGroupResponse struct {
 	Description  string `json:"description"`
 	BoxCount     int    `json:"boxCount"`
 	TotalAmount  int    `json:"totalAmount"`
+}
+type HU struct {
+	HUID       int
+	MaterialID int
+	HUNumber   *string
+	Amount     int
+	ShipmentID *int
+}
+
+// BoxWithStatus объединяет коробку и её текущий статус
+type BoxWithStatus struct {
+	HU                   // встроенная структура HU
+	CurrentStatus string // текущий статус из HU_Status
+	MaterialCode  string // код материала
 }
 
 // handleBoxes обрабатывает запросы к /api/boxes
@@ -355,4 +372,57 @@ func GetBoxesStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// GetBoxByHUNumber возвращает коробку по номеру бирки
+func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `
+        SELECT 
+            h.HUID,
+            h.MaterialID,
+            h.HUNumber,
+            h.Amount,
+            h.ShipmentID,
+            m.MaterialCode,
+            hs.Status as CurrentStatus
+        FROM HU h
+        JOIN materials m ON h.MaterialID = m.MaterialID
+        JOIN HU_Status hs ON h.HUID = hs.HUID
+        WHERE h.HUNumber = ?
+        AND hs.ChangedAt = (
+            SELECT MAX(ChangedAt) 
+            FROM HU_Status 
+            WHERE HUID = h.HUID
+        )`
+
+	var b BoxWithStatus
+	var huNumberDB sql.NullString
+	var shipmentID sql.NullInt32
+	err := database.DB.QueryRowContext(ctx, query, huNumber).Scan(
+		&b.HUID,
+		&b.MaterialID,
+		&huNumberDB,
+		&b.Amount,
+		&shipmentID,
+		&b.MaterialCode,
+		&b.CurrentStatus,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("ошибка поиска коробки: %w", err)
+	}
+
+	if huNumberDB.Valid {
+		b.HUNumber = &huNumberDB.String
+	}
+	if shipmentID.Valid {
+		id := int(shipmentID.Int32)
+		b.ShipmentID = &id
+	}
+	return &b, nil
 }

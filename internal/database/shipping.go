@@ -211,7 +211,7 @@ func AddShipmentDetail(shipmentID, materialID, boxes, amount int) error {
 }
 
 // ScanBoxForShipment сканирует коробку в отгрузке
-func ScanBoxForShipment(shipmentID, huID, materialID int) (bool, error) {
+func ScanBoxForShipment(shipmentID int, huID int, materialID int) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -233,7 +233,7 @@ func ScanBoxForShipment(shipmentID, huID, materialID int) (bool, error) {
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return false, fmt.Errorf("материал %d не найден в отгрузке %d", materialID, shipmentID)
+		return false, fmt.Errorf("материал %s не найден в отгрузке %d", materialID, shipmentID)
 	}
 
 	// 2. Обновляем HU

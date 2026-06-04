@@ -1,0 +1,26 @@
+{    "viewport": {
+        "defaultZoom": 0.6,
+        "minZoom": 0.3,
+        "maxZoom": 2.0
+    },
+    "layout": {
+        "rows": 2,
+        "aisleWidth": 10,
+        "stackWidth": 150,
+        "stackHeight": 200,
+        "maxBoxes": 40
+    },
+    "stacks": [
+        {"materialCode": "LD1100-101", "position": {"row": 0, "col": 1}},
+        {"materialCode": "LL1200-101", "position": {"row": 0, "col": 2}},
+        {"materialCode": "", "position": {"row": 0, "col": 5}},
+        {"materialCode": "LO2300-100", "position": {"row": 0, "col": 3}},
+        {"materialCode": "E68986-104", "position": {"row": 0, "col": 4}},
+        {"materialCode": "LF1100-101", "position": {"row": 1, "col": 0}},
+        {"materialCode": "LF1200-101", "position": {"row": 1, "col": 1}},
+        {"materialCode": "LF2300-100", "position": {"row": 1, "col": 2}},
+        {"materialCode": "LF2400-101", "position": {"row": 1, "col": 3}},
+        {"materialCode": "", "position": {"row": 1, "col": 5}},
+        {"materialCode": "LO2200-100", "position": {"row": 1, "col": 4}}
+    ]
+}

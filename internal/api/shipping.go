@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"EMC_MES/internal/database"
@@ -44,12 +42,6 @@ type CreateShipmentDetailRequest struct {
 	MaterialID int `json:"materialId"`
 	Boxes      int `json:"boxes"`
 	Amount     int `json:"amount"`
-}
-
-// ScanBoxRequest структура запроса на сканирование коробки
-type ScanBoxRequest struct {
-	HUID       int `json:"huId"`
-	MaterialID int `json:"materialId"`
 }
 
 // handleShipments обрабатывает запросы к /api/shipments
@@ -173,41 +165,6 @@ func handleCreateShipment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleShipmentByID обрабатывает запросы к /api/shipments/{id}
-func handleShipmentByID(w http.ResponseWriter, r *http.Request) {
-	// Извлекаем ID из URL
-	path := strings.TrimPrefix(r.URL.Path, "/api/shipments/")
-	idStr := strings.Split(path, "/")[0]
-
-	shipmentID, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid shipment ID", http.StatusBadRequest)
-		return
-	}
-
-	// Проверяем, есть ли подпуть (например /scan, /complete)
-	parts := strings.Split(path, "/")
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "scan":
-			handleScanBox(w, r, shipmentID)
-			return
-		case "complete":
-			handleCompleteShipment(w, r, shipmentID)
-			return
-		}
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-		handleGetShipmentByID(w, r, shipmentID)
-	case http.MethodDelete:
-		handleDeleteShipment(w, r, shipmentID)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
 // handleGetShipmentByID возвращает отгрузку с деталями
 func handleGetShipmentByID(w http.ResponseWriter, r *http.Request, shipmentID int) {
 	shipment, err := database.GetShipmentByID(shipmentID)
@@ -250,54 +207,6 @@ func handleGetShipmentByID(w http.ResponseWriter, r *http.Request, shipmentID in
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-}
-
-// handleScanBox обрабатывает сканирование коробки в отгрузку
-func handleScanBox(w http.ResponseWriter, r *http.Request, shipmentID int) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req ScanBoxRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if req.HUID == 0 {
-		http.Error(w, "huId is required", http.StatusBadRequest)
-		return
-	}
-	if req.MaterialID == 0 {
-		http.Error(w, "materialId is required", http.StatusBadRequest)
-		return
-	}
-
-	// Выполняем сканирование
-	isCompleted, err := database.ScanBoxForShipment(shipmentID, req.HUID, req.MaterialID)
-	if err != nil {
-		logger.Error("API /api/shipments/%d/scan: %v", shipmentID, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Отправляем событие через WebSocket
-	if globalHub != nil {
-		shipment, _ := database.GetShipmentByID(shipmentID)
-		if shipment != nil {
-			globalHub.BroadcastShipmentCompleted(shipmentID, shipment.Number)
-		}
-	}
-
-	logger.Info("API: Отсканирована коробка HU=%d в отгрузку %d, завершена: %v", req.HUID, shipmentID, isCompleted)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "ok",
-		"message":   "Box scanned successfully",
-		"completed": isCompleted,
-	})
 }
 
 // handleCompleteShipment завершает отгрузку (Done = true)

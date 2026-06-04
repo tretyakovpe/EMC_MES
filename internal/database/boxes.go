@@ -35,6 +35,14 @@ type BoxWithStatus struct {
 	MaterialCode  string
 }
 
+// StackResponse структура для склада ГП
+type StackResponse struct {
+	MaterialCode string `json:"materialCode"`
+	MaterialID   int    `json:"materialId"`
+	BoxCount     int    `json:"boxCount"`
+	TotalAmount  int    `json:"totalAmount"`
+}
+
 // GetBoxesByStatus возвращает коробки с определённым статусом
 func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -502,4 +510,48 @@ func getShiftBounds(t time.Time, shift string) (string, string) {
 	default:
 		return "22:00:00", "05:59:59"
 	}
+}
+
+// GetWarehouseStacks возвращает сгруппированные коробки для склада ГП
+func GetWarehouseStacks() ([]StackResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT 
+			m.MaterialCode,
+			m.MaterialID,
+			COUNT(h.HUID) as BoxCount,
+			SUM(h.Amount) as TotalAmount
+		FROM HU h
+		JOIN materials m ON h.MaterialID = m.MaterialID
+		JOIN HU_Status hs ON h.HUID = hs.HUID
+		WHERE hs.Status = N'Произведена'
+		  AND (h.ShipmentID IS NULL OR h.ShipmentID = 0)
+		  AND hs.ChangedAt = (
+		      SELECT MAX(ChangedAt) 
+		      FROM HU_Status 
+		      WHERE HUID = h.HUID
+		  )
+		GROUP BY m.MaterialCode, m.MaterialID
+		ORDER BY m.MaterialCode`
+
+	rows, err := DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса склада: %w", err)
+	}
+	defer rows.Close()
+
+	var stacks []StackResponse
+	for rows.Next() {
+		var s StackResponse
+		err := rows.Scan(&s.MaterialCode, &s.MaterialID, &s.BoxCount, &s.TotalAmount)
+		if err != nil {
+			logger.Error("Ошибка сканирования стека: %v", err)
+			continue
+		}
+		stacks = append(stacks, s)
+	}
+
+	return stacks, nil
 }

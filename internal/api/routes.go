@@ -54,7 +54,6 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
 	mux.HandleFunc("/api/shipments", handleShipments)
-	mux.HandleFunc("/api/shipments/", handleShipmentByID)
 
 	mux.HandleFunc("/api/stats", handleStats)
 	mux.HandleFunc("/api/stats/summary", handleStatsSummary)
@@ -64,6 +63,8 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/statistics/bad-parts", handleGetBadPartsStats)
 	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 
+	mux.HandleFunc("/api/warehouse/stacks", handleWarehouseStacks)
+
 	mux.HandleFunc("/api/events", handleEvent)
 
 	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
@@ -72,6 +73,9 @@ func SetupRoutes() *http.ServeMux {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeFile(w, r, "./web/static/shiftplan.html")
 	})
+
+	// для сканирования
+	RegisterScanRoutes(mux, globalHub)
 
 	return mux
 }

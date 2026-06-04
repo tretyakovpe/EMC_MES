@@ -65,7 +65,9 @@ func main() {
 
 	// Настраиваем и запускаем HTTP сервер
 	addr := fmt.Sprintf(":%d", cfg.ServerPort)
-	router := api.SetupRoutes()
+	mux := api.SetupRoutes()
+	router := api.LoggingMiddleware(mux)
+	//router := api.SetupRoutes()
 
 	server := &http.Server{
 		Addr:         addr,
