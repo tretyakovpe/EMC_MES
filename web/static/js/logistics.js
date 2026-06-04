@@ -25,17 +25,15 @@ async function renderTab() {
     if (currentTab === 'plans') {
         await PlansModule.render(container);
     } else if (currentTab === 'shipments') {
-        // TODO: ShipmentsModule.render(container);
-        container.innerHTML = '<div class="logistics-container"><div class="stats-panel"><h3>🚛 Отгрузки</h3><p>В разработке...</p></div></div>';
+        await ShipmentsModule.render(container);
     } else if (currentTab === 'stats') {
         container.innerHTML = '<div class="logistics-container"><div class="stats-panel"><h3>📊 Статистика</h3><p>В разработке...</p></div></div>';
     }
 }
 
-// Вспомогательная функция (нужна для PlansModule)
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/[&<>]/g, function(m) {
+    return String(str).replace(/[&<>]/g, function (m) {
         if (m === '&') return '&amp;';
         if (m === '<') return '&lt;';
         if (m === '>') return '&gt;';
