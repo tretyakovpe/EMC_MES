@@ -18,69 +18,81 @@ func SetupRoutes() *http.ServeMux {
 
 	mux := http.NewServeMux()
 
-	// Статика с правильными MIME-типами
+	// ==================== СТАТИКА (все файлы через /static/) ====================
 	mux.HandleFunc("/static/", serveStatic)
 
-	// HTML страницы
+	// ==================== HTML СТРАНИЦЫ (точные пути) ====================
+	mux.HandleFunc("/", serveIndex)
 	mux.HandleFunc("/production", serveProduction)
 	mux.HandleFunc("/logistics", serveLogistics)
 	mux.HandleFunc("/quality", serveQuality)
-	mux.HandleFunc("/", serveIndex)
+	mux.HandleFunc("/table-view", serveTableView) // без .html
 
-	// WebSocket
+	// ==================== ВЕБСОКЕТ ====================
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(globalHub, w, r)
 	})
 
-	// API маршруты
+	// ==================== API МАРШРУТЫ ====================
+	// Линии
 	mux.HandleFunc("/api/lines", handleLines)
 	mux.HandleFunc("/api/lines/status", handleLineStatus)
 	mux.HandleFunc("/api/lines/", handleLineByID)
 
+	// Материалы
 	mux.HandleFunc("/api/materials", handleMaterials)
 	mux.HandleFunc("/api/materials/code", handleGetMaterialByCode)
 	mux.HandleFunc("/api/materials/", handleMaterialByID)
 
+	// Коробки
 	mux.HandleFunc("/api/boxes", handleBoxes)
 	mux.HandleFunc("/api/boxes/stats", GetBoxesStats)
 	mux.HandleFunc("/api/boxes/", handleBoxByID)
 
+	// Планы
 	mux.HandleFunc("/api/plans", handlePlans)
 	mux.HandleFunc("/api/plans/volumes", handlePlannedVolumes)
 	mux.HandleFunc("/api/plans/status", handleUpdatePlansStatus)
-	mux.HandleFunc("/api/plans/", handlePlanByID)
 	mux.HandleFunc("/api/plans/month", handleGetPlansByMonth)
+	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
+	mux.HandleFunc("/api/plans/", handlePlanByID)
 
+	// Сменное задание
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
+	// Отгрузки
 	mux.HandleFunc("/api/shipments", handleShipments)
+	//mux.HandleFunc("/api/shipments/", handleShipmentByID)
 
+	// Статистика
 	mux.HandleFunc("/api/stats", handleStats)
 	mux.HandleFunc("/api/stats/summary", handleStatsSummary)
 	mux.HandleFunc("/api/stats/production", handleStatsProduction)
 
+	// Статистика (старая версия)
 	mux.HandleFunc("/api/statistics/boxes", handleGetBoxesStats)
 	mux.HandleFunc("/api/statistics/bad-parts", handleGetBadPartsStats)
 	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 
+	// Склад
 	mux.HandleFunc("/api/warehouse/stacks", handleWarehouseStacks)
 
+	// События
 	mux.HandleFunc("/api/events", handleEvent)
 
-	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
+	// Сканирование
+	RegisterScanRoutes(mux, globalHub)
 
+	// Специальный маршрут для shiftplan (должен быть после всех API)
 	mux.HandleFunc("/production/shiftplan/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeFile(w, r, "./web/static/shiftplan.html")
 	})
 
-	// для сканирования
-	RegisterScanRoutes(mux, globalHub)
-
 	return mux
 }
 
-// serveStatic раздаёт статические файлы с правильными MIME-типами
+// serveStatic раздаёт статические файлы
 func serveStatic(w http.ResponseWriter, r *http.Request) {
 	// Убираем префикс /static/
 	path := strings.TrimPrefix(r.URL.Path, "/static/")
@@ -95,18 +107,12 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 
 	// Проверяем существование файла
 	info, err := os.Stat(fullPath)
-	if err != nil {
+	if err != nil || info.IsDir() {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Если это директория — отдаём 404
-	if info.IsDir() {
-		http.NotFound(w, r)
-		return
-	}
-
-	// Определяем MIME-тип по расширению (явно, без автоопределения)
+	// MIME тип по расширению
 	ext := filepath.Ext(fullPath)
 	switch ext {
 	case ".css":
@@ -123,50 +129,40 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 	case ".svg":
 		w.Header().Set("Content-Type", "image/svg+xml")
-	case ".ico":
-		w.Header().Set("Content-Type", "image/x-icon")
-	case ".woff":
-		w.Header().Set("Content-Type", "font/woff")
-	case ".woff2":
-		w.Header().Set("Content-Type", "font/woff2")
 	default:
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
 
-	// Отключаем MIME sniffing (важно для Windows)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// Отключаем кэширование для статики
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-
 	http.ServeFile(w, r, fullPath)
 }
+
+// HTML страницы
 func serveIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Del("X-Content-Type-Options")
-		http.ServeFile(w, r, "./web/static/index.html")
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
 		return
 	}
-	http.NotFound(w, r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "./web/static/index.html")
 }
+
 func serveProduction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	http.ServeFile(w, r, "./web/static/production.html")
 }
 
 func serveLogistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	http.ServeFile(w, r, "./web/static/logistics.html")
 }
 
 func serveQuality(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	http.ServeFile(w, r, "./web/static/quality.html")
+}
+
+func serveTableView(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "./web/static/table-view.html")
 }

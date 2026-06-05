@@ -266,3 +266,23 @@ func handleDeleteShipment(w http.ResponseWriter, r *http.Request, shipmentID int
 		"message": "Shipment deleted",
 	})
 }
+
+// handleGetScannedBoxes возвращает список отсканированных коробок для отгрузки
+func handleGetScannedBoxes(w http.ResponseWriter, r *http.Request, shipmentID int) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Получаем список отсканированных HUNumber
+	scannedBoxes, err := database.GetScannedBoxesByShipment(shipmentID)
+	if err != nil {
+		logger.Error("API /api/shipments/%d/scanned: %v", shipmentID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Возвращаем JSON массив строк (номера бирок)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(scannedBoxes)
+}

@@ -8,7 +8,7 @@ const WarehouseModule = {
 
     async render(container) {
         this.container = container;
-        
+
         // Загружаем конфиг напрямую
         try {
             const response = await fetch('static/config/warehouse.json');
@@ -22,7 +22,7 @@ const WarehouseModule = {
             console.error('Ошибка загрузки конфига:', error);
             this.config = this.getDefaultConfig();
         }
-        
+
         // Отображаем контейнер
         container.innerHTML = `
             <div class="logistics-container">
@@ -35,24 +35,24 @@ const WarehouseModule = {
                 </div>
             </div>
         `;
-        
+
         // Загружаем данные
         await this.loadData();
-        
+
         // Рендерим
         this.renderStacks();
-        
+
         // Обновление по кнопке
         document.getElementById('refresh-warehouse')?.addEventListener('click', () => {
             this.refreshData();
         });
-        
+
         // WebSocket для реального времени
         this.initWebSocket();
-        
+
         // Автообновление каждые 10 секунд
         this.updateInterval = setInterval(() => this.refreshData(), 10000);
-        
+
         console.log('WarehouseModule initialized');
     },
 
@@ -126,11 +126,11 @@ const WarehouseModule = {
 
         for (let row = 0; row < rows; row++) {
             html += `<div class="warehouse-row">`;
-            
+
             for (let col = 0; col < rowsData[row].length; col++) {
                 const stack = rowsData[row][col];
                 const materialCode = stack?.materialCode;
-                
+
                 // Ищем данные по materialCode
                 const data = this.stacksData.find(s => s.materialCode === materialCode);
                 const boxCount = data?.boxCount || 0;
@@ -169,7 +169,9 @@ const WarehouseModule = {
             card.addEventListener('click', () => {
                 const materialCode = card.dataset.material;
                 if (materialCode) {
-                    this.showBoxesList(materialCode);
+                    // Переход на таблицу коробок
+                    const title = `Коробки: ${materialCode}`;
+                    window.location.href = `/table-view.html?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}`;
                 }
             });
         });
@@ -180,10 +182,10 @@ const WarehouseModule = {
             const response = await fetch(`/api/boxes?materialCode=${encodeURIComponent(materialCode)}&status=Произведена`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const boxes = await response.json();
-            
+
             console.log(`Коробки материала ${materialCode}:`, boxes);
             alert(`Материал: ${materialCode}\nКоробок: ${boxes.length}\nИнформация в консоли (F12)`);
-            
+
             // TODO: позже добавить модальное окно с печатью
         } catch (error) {
             console.error('Ошибка загрузки коробок:', error);
@@ -192,7 +194,7 @@ const WarehouseModule = {
 
     initWebSocket() {
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
-        
+
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
@@ -203,7 +205,7 @@ const WarehouseModule = {
                 console.error('WebSocket error:', error);
             }
         };
-        
+
         ws.onclose = () => {
             setTimeout(() => this.initWebSocket(), 5000);
         };

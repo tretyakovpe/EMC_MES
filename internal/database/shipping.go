@@ -410,3 +410,35 @@ func GetShipmentProgress(shipmentID int) (int, error) {
 	}
 	return (totalScanned * 100) / totalBoxes, nil
 }
+
+// GetScannedBoxesByShipment возвращает список номеров бирок, отсканированных в отгрузку
+func GetScannedBoxesByShipment(shipmentID int) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT h.HUNumber
+		FROM HU h
+		WHERE h.ShipmentID = ?
+		  AND h.HUNumber IS NOT NULL
+		ORDER BY h.HUID ASC
+	`
+
+	rows, err := DB.QueryContext(ctx, query, shipmentID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса отсканированных коробок: %w", err)
+	}
+	defer rows.Close()
+
+	var scannedBoxes []string
+	for rows.Next() {
+		var huNumber string
+		if err := rows.Scan(&huNumber); err != nil {
+			logger.Error("Ошибка сканирования HUNumber: %v", err)
+			continue
+		}
+		scannedBoxes = append(scannedBoxes, huNumber)
+	}
+
+	return scannedBoxes, nil
+}
