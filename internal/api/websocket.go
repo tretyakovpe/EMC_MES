@@ -36,15 +36,16 @@ func serveWs(hub *events.Hub, w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("WebSocket клиент подключен: %s", r.RemoteAddr)
 
-	// Только отправка сообщений клиенту
+	// Запускаем горутины
 	go writePump(client)
-	// Чтение сообщений от клиента (для поддержания соединения)
 	go readPump(client)
 }
 
-// writePump отправляет сообщения клиенту
+// writePump отправляет сообщения клиенту и пинги
 func writePump(client *events.Client) {
+	ticker := time.NewTicker(30 * time.Second) // пинг каждые 30 секунд
 	defer func() {
+		ticker.Stop()
 		client.Conn.Close()
 	}()
 
@@ -52,7 +53,7 @@ func writePump(client *events.Client) {
 		select {
 		case message, ok := <-client.Send:
 			if !ok {
-				// Канал закрыт
+				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
@@ -60,11 +61,18 @@ func writePump(client *events.Client) {
 				logger.Error("Ошибка отправки WebSocket сообщения: %v", err)
 				return
 			}
+		case <-ticker.C:
+			// Отправляем пинг
+			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logger.Error("Ошибка отправки пинга: %v", err)
+				return
+			}
 		}
 	}
 }
 
-// readPump читает сообщения от клиента (просто читаем, чтобы соединение не закрывалось)
+// readPump читает сообщения от клиента
 func readPump(client *events.Client) {
 	defer func() {
 		client.Hub.Unregister <- client
@@ -75,7 +83,7 @@ func readPump(client *events.Client) {
 	// Устанавливаем таймаут на чтение
 	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 
-	// Обработчик Pong (обновляет таймаут)
+	// Обработчик пинга от клиента (обновляет таймаут)
 	client.Conn.SetPongHandler(func(string) error {
 		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil

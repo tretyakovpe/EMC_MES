@@ -12,12 +12,6 @@ function switchScreen(screenName) {
         case 'workshop':
             currentScreen = new WorkshopScreen();
             break;
-        case 'warehouse':
-            container.innerHTML = '<div class="text-center p-5">🚧 Склад ГП в разработке</div>';
-            return;
-        case 'shipping':
-            container.innerHTML = '<div class="text-center p-5">🚧 Склад отгрузки в разработке</div>';
-            return;
         case 'statistics':
             currentScreen = new StatisticsScreen();
             break;

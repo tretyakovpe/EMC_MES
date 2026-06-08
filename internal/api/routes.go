@@ -39,6 +39,10 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/lines/status", handleLineStatus)
 	mux.HandleFunc("/api/lines/", handleLineByID)
 
+	// Статистика линий (отдельный эндпоинт)
+	mux.HandleFunc("/api/linestats", handleGetAllLinesStats)
+	mux.HandleFunc("/api/linestats/", handleGetLineStats)
+
 	// Материалы
 	mux.HandleFunc("/api/materials", handleMaterials)
 	mux.HandleFunc("/api/materials/code", handleGetMaterialByCode)
@@ -88,12 +92,19 @@ func SetupRoutes() *http.ServeMux {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeFile(w, r, "./web/static/shiftplan.html")
 	})
-
 	return mux
 }
 
 // serveStatic раздаёт статические файлы
 func serveStatic(w http.ResponseWriter, r *http.Request) {
+	// Получаем путь к исполняемому файлу
+	exePath, err := os.Executable()
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	exeDir := filepath.Dir(exePath)
+
 	// Убираем префикс /static/
 	path := strings.TrimPrefix(r.URL.Path, "/static/")
 
@@ -103,7 +114,7 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fullPath := filepath.Join("./web/static", path)
+	fullPath := filepath.Join(exeDir, "web", "static", path)
 
 	// Проверяем существование файла
 	info, err := os.Stat(fullPath)

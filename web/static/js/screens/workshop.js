@@ -234,6 +234,25 @@ class WorkshopScreen {
     initWebSocket() {
         this.ws = new WebSocket(`ws://${window.location.host}/ws`);
 
+        this.ws.onopen = async () => {
+            console.log('WebSocket connected');
+
+            // Загружаем текущую статистику для всех линий
+            for (const [name, line] of this.lines) {
+                try {
+                    const stats = await API.get(`linestats/${name}`);
+                    if (stats) {
+                        line.currentMaterial = stats.material;
+                        line.currentCount = stats.counter;
+                        line.maxCount = stats.boxQuantity;
+                    }
+                } catch (error) {
+                    console.error(`Failed to load line stats for ${name}:`, error);
+                }
+            }
+            this.renderLines();
+        };
+
         this.ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
@@ -242,15 +261,12 @@ class WorkshopScreen {
                     case 'box_closed':
                         this.handleBoxClosed(message.data);
                         break;
-
                     case 'part_ok':
                         this.handlePartProduced(message.data, true);
                         break;
-
                     case 'part_nok':
                         this.handlePartProduced(message.data, false);
                         break;
-
                     case 'line_status':
                         this.handleLineStatusChange(message.data);
                         break;
@@ -260,7 +276,6 @@ class WorkshopScreen {
                     case 'line_card_update':
                         this.handleLineCardUpdate(message.data);
                         break;
-
                 }
             } catch (error) {
                 console.error('WebSocket parse error:', error);
@@ -270,6 +285,10 @@ class WorkshopScreen {
         this.ws.onclose = () => {
             console.log('WebSocket disconnected, reconnecting in 5s...');
             setTimeout(() => this.initWebSocket(), 5000);
+        };
+
+        this.ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
         };
     }
 

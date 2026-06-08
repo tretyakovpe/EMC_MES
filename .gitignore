@@ -1,3 +1,4 @@
 /config/config.json
 logs/
-emc_mes
+/emc_mes
+/emc_mes.exe

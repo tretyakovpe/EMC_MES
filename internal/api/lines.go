@@ -342,3 +342,68 @@ func handleLineStatus(w http.ResponseWriter, r *http.Request) {
 		"isOnline": req.IsOnline,
 	})
 }
+
+// handleGetAllLinesStats возвращает статистику для всех линий
+func handleGetAllLinesStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	lines, err := database.GetAllLines()
+	if err != nil {
+		logger.Error("API /api/linestats: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	response := make([]map[string]interface{}, 0, len(lines))
+	for _, line := range lines {
+		counter, boxQuantity, material, err := database.GetLineStats(strings.TrimSpace(line.Name))
+		if err != nil {
+			continue
+		}
+		response = append(response, map[string]interface{}{
+			"name":        strings.TrimSpace(line.Name),
+			"counter":     counter,
+			"boxQuantity": boxQuantity,
+			"material":    material,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleGetLineStats возвращает статистику для одной линии
+func handleGetLineStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Извлекаем имя линии из URL: /api/linestats/19
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		http.Error(w, "Missing line name", http.StatusBadRequest)
+		return
+	}
+	lineName := parts[3]
+
+	counter, boxQuantity, material, err := database.GetLineStats(lineName)
+	if err != nil {
+		logger.Error("API /api/linestats/%s: %v", lineName, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"name":        lineName,
+		"counter":     counter,
+		"boxQuantity": boxQuantity,
+		"material":    material,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
