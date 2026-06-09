@@ -66,6 +66,8 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
 	// Отгрузки
+	// Парсинг буфера обмена для отгрузок
+	mux.HandleFunc("/api/shipments/parse-clipboard", handleParseClipboard)
 	mux.HandleFunc("/api/shipments", handleShipments) // GET, POST
 
 	mux.HandleFunc("/api/shipments/", func(w http.ResponseWriter, r *http.Request) {

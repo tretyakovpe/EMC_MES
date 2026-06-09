@@ -14,6 +14,7 @@ const ShipmentsModule = {
                         <div class="panel-header">
                             <h3>🚛 Отгрузки</h3>
                             <button id="create-shipment-btn" class="btn-primary">➕ Новая отгрузка</button>
+                            <button id="clipboard-shipment-btn" class="btn-secondary">📋 Из буфера</button>
                         </div>
                         <div class="shipments-grid" id="shipments-list">
                             <div class="loading">Загрузка...</div>
@@ -138,6 +139,11 @@ const ShipmentsModule = {
         if (closePickerBtn) {
             closePickerBtn.onclick = () => this.closePicker();
         }
+        const clipboardBtn = document.getElementById('clipboard-shipment-btn');
+        if (clipboardBtn) {
+            clipboardBtn.onclick = () => this.showClipboardModal();
+        }
+
     },
 
     startNewShipment() {
@@ -249,16 +255,16 @@ const ShipmentsModule = {
                 </div>
             </div>
         `).join('');
-        
+
         // Добавляем кнопку "Добавить материал" в конце списка
         itemsHtml += `
             <div class="add-material-card">
                 <button class="add-material-btn-full">➕ Добавить материал</button>
             </div>
         `;
-        
+
         container.innerHTML = itemsHtml;
-        
+
         // Привязываем обработчик для кнопки добавления
         const addBtn = container.querySelector('.add-material-btn-full');
         if (addBtn) {
@@ -357,6 +363,126 @@ const ShipmentsModule = {
             if (m === '>') return '&gt;';
             return m;
         });
+    },
+
+    showClipboardModal() {
+        // Создаём модальное окно
+        const modal = document.createElement('div');
+        modal.className = 'clipboard-modal';
+        modal.innerHTML = `
+        <div class="clipboard-modal-content">
+            <div class="clipboard-modal-header">
+                <h3>📋 Создание отгрузки из буфера обмена</h3>
+                <button class="close-modal-btn">✕</button>
+            </div>
+            <div class="clipboard-modal-body">
+                <div class="clipboard-step">
+                    <label>Шаг 1: Вставьте данные (Ctrl+V)</label>
+                    <textarea id="clipboard-text" rows="8" placeholder='Вставьте сюда строки из накладной 1С...'></textarea>
+                    <button id="parse-clipboard-btn" class="btn-primary">🔍 Распознать и проверить</button>
+                </div>
+                <div class="clipboard-step" id="parse-result-section" style="display: none;">
+                    <label>Шаг 2: Результат распознавания</label>
+                    <div id="parse-result-table"></div>
+                    <div class="shipment-number-input" style="margin-top: 16px;">
+                        <label>Номер накладной:</label>
+                        <input type="text" id="modal-shipment-number" placeholder="Введите номер накладной" class="form-input">
+                    </div>
+                    <button id="create-from-clipboard-btn" class="btn-success">✅ Оформить отгрузку</button>
+                </div>
+            </div>
+        </div>
+    `;
+        document.body.appendChild(modal);
+
+        // Закрытие модального окна
+        modal.querySelector('.close-modal-btn').onclick = () => modal.remove();
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+        // Парсинг буфера
+        document.getElementById('parse-clipboard-btn').onclick = async () => {
+            const text = document.getElementById('clipboard-text').value;
+            if (!text.trim()) {
+                alert('Вставьте данные');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/shipments/parse-clipboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const result = await response.json();
+
+                if (result.errors && result.errors.length) {
+                    alert('Ошибки:\n' + result.errors.join('\n'));
+                }
+
+                this.renderParseResult(result);
+                document.getElementById('parse-result-section').style.display = 'block';
+            } catch (error) {
+                console.error('Ошибка парсинга:', error);
+                alert('Ошибка при распознавании данных');
+            }
+        };
+
+        // Создание отгрузки из распознанных данных
+        document.getElementById('create-from-clipboard-btn').onclick = async () => {
+            const shipmentNumber = document.getElementById('modal-shipment-number').value.trim();
+            if (!shipmentNumber) {
+                alert('Введите номер накладной');
+                return;
+            }
+
+            // Собираем только валидные строки
+            const validRows = this.parsedRows.filter(row => row.valid);
+            if (validRows.length === 0) {
+                alert('Нет валидных позиций для создания отгрузки');
+                return;
+            }
+
+            const details = validRows.map(row => ({
+                materialId: row.materialId,
+                boxes: row.boxes,
+                amount: row.amount
+            }));
+
+            try {
+                const result = await API.createShipment({
+                    number: parseInt(shipmentNumber),
+                    date: new Date().toISOString().slice(0, 10),
+                    details: details
+                });
+                alert(`Отгрузка №${shipmentNumber} создана`);
+                modal.remove();
+                await this.loadShipments();
+            } catch (error) {
+                console.error('Ошибка создания отгрузки:', error);
+                alert('Ошибка создания отгрузки: ' + error.message);
+            }
+        };
+    },
+
+    renderParseResult(result) {
+        this.parsedRows = result.rows;
+        const container = document.getElementById('parse-result-table');
+
+        let html = '<table class="parse-result-table">';
+        html += '<thead><table><th>CustomerCode</th><th>MaterialCode</th><th>Количество</th><th>Статус</th></thead><tbody>';
+
+        for (const row of result.rows) {
+            const status = row.valid ? '✅ Найден' : `❌ ${row.error || 'Не найден'}`;
+            html += `<tr class="${row.valid ? 'valid-row' : 'invalid-row'}">
+                    <td>${this.escapeHtml(row.customerCode)}</td>
+                    <td>${this.escapeHtml(row.materialCode || '—')}</td>
+                    <td>${row.boxes}</td>
+                    <td>${status}</td>
+                 </tr>`;
+        }
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
     }
 };
 

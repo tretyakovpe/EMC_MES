@@ -31,6 +31,7 @@ type MaterialRequest struct {
 	Netto        int    `json:"netto"`
 	Brutto       int    `json:"brutto"`
 	QuantityInHU int    `json:"quantityInHU"`
+	Description  string `json:"description"`
 }
 
 // handleMaterials обрабатывает запросы к /api/materials
@@ -113,6 +114,7 @@ func handleCreateMaterial(w http.ResponseWriter, r *http.Request) {
 		req.Netto,
 		req.Brutto,
 		req.QuantityInHU,
+		req.Description,
 	)
 	if err != nil {
 		logger.Error("API /api/materials (create): %v", err)
@@ -207,6 +209,7 @@ func handleUpdateMaterial(w http.ResponseWriter, r *http.Request, materialID int
 		req.Netto,
 		req.Brutto,
 		req.QuantityInHU,
+		req.Description,
 	)
 	if err != nil {
 		logger.Error("API /api/materials/%d (update): %v", materialID, err)

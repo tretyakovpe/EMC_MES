@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"EMC_MES/internal/logger"
@@ -19,6 +20,7 @@ type Material struct {
 	Netto        int
 	Brutto       int
 	QuantityInHU int
+	Description  string
 }
 
 // GetMaterialByID возвращает материал по ID
@@ -36,7 +38,8 @@ func GetMaterialByID(materialID int) (*Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		WHERE MaterialID = ?`
 
@@ -49,6 +52,7 @@ func GetMaterialByID(materialID int) (*Material, error) {
 		&m.Netto,
 		&m.Brutto,
 		&m.QuantityInHU,
+		&m.Description,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -75,7 +79,8 @@ func GetMaterialByCode(materialCode string) (*Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		WHERE MaterialCode = ?`
 
@@ -88,6 +93,7 @@ func GetMaterialByCode(materialCode string) (*Material, error) {
 		&m.Netto,
 		&m.Brutto,
 		&m.QuantityInHU,
+		&m.Description,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -113,7 +119,8 @@ func GetAllMaterials() ([]Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		ORDER BY MaterialCode`
 
@@ -135,6 +142,7 @@ func GetAllMaterials() ([]Material, error) {
 			&m.Netto,
 			&m.Brutto,
 			&m.QuantityInHU,
+			&m.Description,
 		)
 		if err != nil {
 			logger.Error("Ошибка сканирования материала: %v", err)
@@ -194,7 +202,8 @@ func GetMaterialsByCodePrefix(prefix string) ([]Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		WHERE MaterialCode LIKE ?
 		ORDER BY MaterialCode`
@@ -217,6 +226,7 @@ func GetMaterialsByCodePrefix(prefix string) ([]Material, error) {
 			&m.Netto,
 			&m.Brutto,
 			&m.QuantityInHU,
+			&m.Description,
 		)
 		if err != nil {
 			logger.Error("Ошибка сканирования материала: %v", err)
@@ -229,7 +239,7 @@ func GetMaterialsByCodePrefix(prefix string) ([]Material, error) {
 }
 
 // CreateMaterial создаёт новый материал
-func CreateMaterial(materialCode, customerCode, destination, hu string, netto, brutto, quantityInHU int) (int, error) {
+func CreateMaterial(materialCode, customerCode, destination, hu string, netto, brutto, quantityInHU int, Description string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -241,14 +251,16 @@ func CreateMaterial(materialCode, customerCode, destination, hu string, netto, b
 			HU, 
 			Netto, 
 			Brutto, 
-			QuantityInHU
+			QuantityInHU,
+			Description
 		) VALUES (?, ?, ?, ?, ?, ?, ?);
 		SELECT SCOPE_IDENTITY();
 	`
 
 	var materialID int
-	err := DB.QueryRowContext(ctx, query,
-		materialCode, customerCode, destination, hu, netto, brutto, quantityInHU,
+	err := DB.QueryRowContext(
+		ctx, query,
+		materialCode, customerCode, destination, hu, netto, brutto, quantityInHU, Description,
 	).Scan(&materialID)
 	if err != nil {
 		return 0, fmt.Errorf("ошибка создания материала: %w", err)
@@ -259,7 +271,7 @@ func CreateMaterial(materialCode, customerCode, destination, hu string, netto, b
 }
 
 // UpdateMaterial обновляет данные материала
-func UpdateMaterial(materialID int, customerCode, destination, hu string, netto, brutto, quantityInHU int) error {
+func UpdateMaterial(materialID int, customerCode, destination, hu string, netto, brutto, quantityInHU int, description string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -271,11 +283,13 @@ func UpdateMaterial(materialID int, customerCode, destination, hu string, netto,
 			HU = ?,
 			Netto = ?,
 			Brutto = ?,
-			QuantityInHU = ?
+			QuantityInHU = ?,
+			Description = ?
 		WHERE MaterialID = ?`
 
-	result, err := DB.ExecContext(ctx, query,
-		customerCode, destination, hu, netto, brutto, quantityInHU, materialID,
+	result, err := DB.ExecContext(
+		ctx, query,
+		customerCode, destination, hu, netto, brutto, quantityInHU, materialID, description,
 	)
 	if err != nil {
 		return fmt.Errorf("ошибка обновления материала: %w", err)
@@ -308,4 +322,45 @@ func DeleteMaterial(materialID int) error {
 
 	logger.Info("[DB] Удалён материал ID=%d", materialID)
 	return nil
+}
+
+// GetMaterialByCustomerCode возвращает материал по коду клиента
+func GetMaterialByCustomerCode(customerCode string) (*Material, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var m Material
+	query := `
+		SELECT 
+			MaterialID,
+			MaterialCode,
+			CustomerCode,
+			Destination,
+			HU,
+			Netto,
+			Brutto,
+			QuantityInHU,
+			ISNULL(Description, '') as Description
+		FROM [dbo].[materials]
+		WHERE RTRIM(CustomerCode) = ?`
+
+	err := DB.QueryRowContext(ctx, query, strings.TrimSpace(customerCode)).Scan(
+		&m.MaterialID,
+		&m.MaterialCode,
+		&m.CustomerCode,
+		&m.Destination,
+		&m.HU,
+		&m.Netto,
+		&m.Brutto,
+		&m.QuantityInHU,
+		&m.Description,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("ошибка поиска материала: %w", err)
+	}
+
+	return &m, nil
 }

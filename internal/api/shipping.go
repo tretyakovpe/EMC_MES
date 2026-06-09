@@ -2,7 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"EMC_MES/internal/database"
@@ -285,4 +289,149 @@ func handleGetScannedBoxes(w http.ResponseWriter, r *http.Request, shipmentID in
 	// Возвращаем JSON массив строк (номера бирок)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(scannedBoxes)
+}
+
+// ParseClipboardRequest структура запроса на парсинг буфера
+type ParseClipboardRequest struct {
+	Text string `json:"text"`
+}
+
+// ParsedRow результат парсинга одной строки
+type ParsedRow struct {
+	CustomerCode string `json:"customerCode"`
+	MaterialCode string `json:"materialCode"`
+	MaterialID   int    `json:"materialId"`
+	Boxes        int    `json:"boxes"`
+	Amount       int    `json:"amount"`
+	Valid        bool   `json:"valid"`
+	Error        string `json:"error,omitempty"`
+}
+
+// ParseClipboardResponse ответ на парсинг буфера
+type ParseClipboardResponse struct {
+	Rows   []ParsedRow `json:"rows"`
+	Errors []string    `json:"errors,omitempty"`
+}
+
+// handleParseClipboard парсит текст из буфера обмена
+func handleParseClipboard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ParseClipboardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Text == "" {
+		http.Error(w, "Text is required", http.StatusBadRequest)
+		return
+	}
+
+	response := parseClipboardText(req.Text)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// parseClipboardText основная логика парсинга
+func parseClipboardText(text string) ParseClipboardResponse {
+	lines := strings.Split(text, "\n")
+	response := ParseClipboardResponse{
+		Rows:   make([]ParsedRow, 0),
+		Errors: make([]string, 0),
+	}
+
+	for lineIdx, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Ищем CustomerCode в начале строки (группа цифр 10-12 символов)
+		customerCode := extractCustomerCode(line)
+		if customerCode == "" {
+			response.Errors = append(response.Errors, fmt.Sprintf("Строка %d: не найден CustomerCode", lineIdx+1))
+			continue
+		}
+
+		// Ищем количество в строке (число с плавающей запятой, например "1,000" или "796")
+		boxes := extractBoxesCount(line)
+		if boxes == 0 {
+			response.Errors = append(response.Errors, fmt.Sprintf("Строка %d: не найдено количество для CustomerCode %s", lineIdx+1, customerCode))
+			continue
+		}
+
+		// Ищем материал по CustomerCode в БД
+		material, err := database.GetMaterialByCustomerCode(customerCode)
+		if err != nil {
+			logger.Error("[PARSE] Ошибка поиска материала по CustomerCode %s: %v", customerCode, err)
+			response.Rows = append(response.Rows, ParsedRow{
+				CustomerCode: customerCode,
+				Valid:        false,
+				Error:        fmt.Sprintf("Ошибка БД: %v", err),
+			})
+			continue
+		}
+
+		if material == nil {
+			response.Rows = append(response.Rows, ParsedRow{
+				CustomerCode: customerCode,
+				Boxes:        boxes,
+				Valid:        false,
+				Error:        "Материал с таким CustomerCode не найден",
+			})
+			continue
+		}
+
+		// Всё хорошо — добавляем валидную строку
+		response.Rows = append(response.Rows, ParsedRow{
+			CustomerCode: customerCode,
+			MaterialCode: material.MaterialCode,
+			MaterialID:   material.MaterialID,
+			Boxes:        boxes / material.QuantityInHU,
+			Amount:       boxes,
+			Valid:        true,
+		})
+	}
+
+	return response
+}
+
+// extractCustomerCode извлекает CustomerCode из строки
+func extractCustomerCode(line string) string {
+	// Ищем последовательность из 10-12 цифр в начале строки
+	re := regexp.MustCompile(`^(\d{10,12})`)
+	matches := re.FindStringSubmatch(line)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+// extractBoxesCount извлекает количество коробок из строки
+func extractBoxesCount(line string) int {
+	// Ищем числа с пробелами или запятыми как разделителями тысяч
+	// Пример: "1,000", "796", "1 080"
+	re := regexp.MustCompile(`(\d{1,3}(?:[\s,]\d{3})*|\d+)`)
+	matches := re.FindAllStringSubmatch(line, -1)
+
+	if len(matches) < 2 {
+		return 0
+	}
+
+	// Берём последнее число в строке (обычно это количество)
+	lastMatch := matches[len(matches)-1][1]
+	// Убираем пробелы и запятые
+	clean := strings.ReplaceAll(lastMatch, " ", "")
+	clean = strings.ReplaceAll(clean, ",", "")
+
+	boxes, err := strconv.Atoi(clean)
+	if err != nil {
+		return 0
+	}
+	return boxes
 }
