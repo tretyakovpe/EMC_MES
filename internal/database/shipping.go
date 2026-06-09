@@ -335,7 +335,7 @@ func CompleteShipment(shipmentID int) error {
 	return nil
 }
 
-// DeleteShipment удаляет отгрузку
+// DeleteShipment удаляет отгрузку (только если не завершена)
 func DeleteShipment(shipmentID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -343,8 +343,8 @@ func DeleteShipment(shipmentID int) error {
 	// Проверяем, что отгрузка не завершена
 	var done bool
 	err := DB.QueryRowContext(ctx, `
-		SELECT Done FROM Shipments WHERE ShipmentID = ?
-	`, shipmentID).Scan(&done)
+        SELECT Done FROM Shipments WHERE ShipmentID = ?
+    `, shipmentID).Scan(&done)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("отгрузка %d не найдена", shipmentID)
 	}
@@ -361,18 +361,29 @@ func DeleteShipment(shipmentID int) error {
 	}
 	defer tx.Rollback()
 
-	// Удаляем детали
+	// 1. Отвязываем коробки от отгрузки (удаляем ShipmentID в HU)
 	_, err = tx.ExecContext(ctx, `
-		DELETE FROM ShipmentDetails WHERE ShipmentID = ?
-	`, shipmentID)
+        UPDATE HU SET ShipmentID = NULL WHERE ShipmentID = ?
+    `, shipmentID)
+	if err != nil {
+		return fmt.Errorf("ошибка отвязки коробок: %w", err)
+	}
+
+	// 2. Удаляем статусы коробок, связанные с этой отгрузкой (если нужно)
+	//    Но статусы останутся в HU_Status, это нормально
+
+	// 3. Удаляем детали отгрузки
+	_, err = tx.ExecContext(ctx, `
+        DELETE FROM ShipmentDetails WHERE ShipmentID = ?
+    `, shipmentID)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления деталей отгрузки: %w", err)
 	}
 
-	// Удаляем заголовок
+	// 4. Удаляем заголовок отгрузки
 	_, err = tx.ExecContext(ctx, `
-		DELETE FROM Shipments WHERE ShipmentID = ?
-	`, shipmentID)
+        DELETE FROM Shipments WHERE ShipmentID = ?
+    `, shipmentID)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления отгрузки: %w", err)
 	}
@@ -441,4 +452,40 @@ func GetScannedBoxesByShipment(shipmentID int) ([]string, error) {
 	}
 
 	return scannedBoxes, nil
+}
+
+// GetShipmentDetailsByMaterial возвращает детали отгрузки по материалу
+func GetShipmentDetailsByMaterial(shipmentID, materialID int) (*ShipmentDetail, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT 
+			ShipmentDetailID,
+			ShipmentID,
+			MaterialID,
+			Boxes,
+			Amount,
+			ScannedBoxes
+		FROM ShipmentDetails
+		WHERE ShipmentID = ? AND MaterialID = ?
+	`
+
+	var d ShipmentDetail
+	err := DB.QueryRowContext(ctx, query, shipmentID, materialID).Scan(
+		&d.ShipmentDetailID,
+		&d.ShipmentID,
+		&d.MaterialID,
+		&d.Boxes,
+		&d.Amount,
+		&d.ScannedBoxes,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("ошибка получения деталей отгрузки: %w", err)
+	}
+
+	return &d, nil
 }

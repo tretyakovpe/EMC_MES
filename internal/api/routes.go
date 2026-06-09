@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"EMC_MES/internal/events"
@@ -65,8 +66,49 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
 	// Отгрузки
-	mux.HandleFunc("/api/shipments", handleShipments)
-	//mux.HandleFunc("/api/shipments/", handleShipmentByID)
+	mux.HandleFunc("/api/shipments", handleShipments) // GET, POST
+
+	mux.HandleFunc("/api/shipments/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/shipments/")
+
+		// Обработка /api/shipments/{id}/complete
+		if strings.HasSuffix(path, "/complete") {
+			idStr := strings.TrimSuffix(path, "/complete")
+			shipmentID, err := strconv.Atoi(idStr)
+			if err == nil {
+				handleCompleteShipment(w, r, shipmentID)
+				return
+			}
+		}
+
+		// Обработка /api/shipments/{id}/scanned
+		if strings.HasSuffix(path, "/scanned") {
+			idStr := strings.TrimSuffix(path, "/scanned")
+			shipmentID, err := strconv.Atoi(idStr)
+			if err == nil {
+				handleGetScannedBoxes(w, r, shipmentID)
+				return
+			}
+		}
+
+		// Обработка /api/shipments/{id} - просмотр/удаление
+		if len(path) > 0 && path != "" {
+			shipmentID, err := strconv.Atoi(path)
+			if err == nil {
+				switch r.Method {
+				case http.MethodGet:
+					handleGetShipmentByID(w, r, shipmentID)
+				case http.MethodDelete:
+					handleDeleteShipment(w, r, shipmentID)
+				default:
+					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				}
+				return
+			}
+		}
+
+		http.NotFound(w, r)
+	})
 
 	// Статистика
 	mux.HandleFunc("/api/stats", handleStats)

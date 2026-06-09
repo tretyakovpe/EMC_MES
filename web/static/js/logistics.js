@@ -24,10 +24,10 @@ async function renderTab() {
 
     if (currentTab === 'plans') {
         await PlansModule.render(container);
-    } else if (currentTab === 'shipments') {
-        await ShipmentsModule.render(container);
     } else if (currentTab === 'warehouse') {
         await WarehouseModule.render(container);
+    } else if (currentTab === 'shipments') {
+        await ShipmentsModule.render(container);
     } else if (currentTab === 'stats') {
         container.innerHTML = '<div class="logistics-container"><div class="stats-panel"><h3>📊 Статистика</h3><p>В разработке...</p></div></div>';
     }

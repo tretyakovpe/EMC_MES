@@ -34,6 +34,7 @@ const ShipmentsModule = {
                             <div class="empty-items">Добавьте материалы</div>
                         </div>
                         <div class="shipment-actions">
+                            <button id="add-material-btn" class="btn-secondary">➕ Добавить материал</button>
                             <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
                         </div>
                     </div>
@@ -70,6 +71,7 @@ const ShipmentsModule = {
             }
         }
     },
+
     renderShipmentsList() {
         const container = document.getElementById('shipments-list');
         if (!container) return;
@@ -114,12 +116,17 @@ const ShipmentsModule = {
     attachEvents() {
         const createBtn = document.getElementById('create-shipment-btn');
         if (createBtn) {
-            createBtn.onclick = () => this.showMaterialsPicker();
+            createBtn.onclick = () => this.startNewShipment();
         }
 
         const closeBtn = document.getElementById('close-editor-btn');
         if (closeBtn) {
             closeBtn.onclick = () => this.closeEditor();
+        }
+
+        const addMaterialBtn = document.getElementById('add-material-btn');
+        if (addMaterialBtn) {
+            addMaterialBtn.onclick = () => this.showMaterialsPicker();
         }
 
         const saveBtn = document.getElementById('save-shipment-btn');
@@ -131,6 +138,15 @@ const ShipmentsModule = {
         if (closePickerBtn) {
             closePickerBtn.onclick = () => this.closePicker();
         }
+    },
+
+    startNewShipment() {
+        // Очищаем текущие данные
+        this.shipmentItems = [];
+        document.getElementById('shipment-number').value = '';
+        this.renderShipmentItems();
+        // Сразу показываем пикер материалов
+        this.showMaterialsPicker();
     },
 
     async showMaterialsPicker() {
@@ -184,6 +200,8 @@ const ShipmentsModule = {
                     const count = prompt(`Сколько коробок ${materialCode} добавить? (доступно: ${maxBoxes})`, '1');
                     if (count && parseInt(count) > 0) {
                         this.addToShipment(materialId, materialCode, parseInt(count));
+                        // Закрываем пикер после добавления
+                        this.closePicker();
                     }
                 };
             });
@@ -205,7 +223,6 @@ const ShipmentsModule = {
             });
         }
         this.renderShipmentItems();
-        this.closePicker();
     },
 
     renderShipmentItems() {
@@ -220,7 +237,8 @@ const ShipmentsModule = {
 
         editor.style.display = 'flex';
 
-        container.innerHTML = this.shipmentItems.map((item, idx) => `
+        // Рендерим список материалов
+        let itemsHtml = this.shipmentItems.map((item, idx) => `
             <div class="shipment-item-card">
                 <div class="item-info">
                     <strong>${this.escapeHtml(item.materialCode)}</strong>
@@ -231,11 +249,30 @@ const ShipmentsModule = {
                 </div>
             </div>
         `).join('');
+        
+        // Добавляем кнопку "Добавить материал" в конце списка
+        itemsHtml += `
+            <div class="add-material-card">
+                <button class="add-material-btn-full">➕ Добавить материал</button>
+            </div>
+        `;
+        
+        container.innerHTML = itemsHtml;
+        
+        // Привязываем обработчик для кнопки добавления
+        const addBtn = container.querySelector('.add-material-btn-full');
+        if (addBtn) {
+            addBtn.onclick = () => this.showMaterialsPicker();
+        }
     },
 
     removeShipmentItem(index) {
         this.shipmentItems.splice(index, 1);
         this.renderShipmentItems();
+        // Если материалов не осталось, скрываем редактор
+        if (this.shipmentItems.length === 0) {
+            document.getElementById('shipment-editor').style.display = 'none';
+        }
     },
 
     async saveShipment() {

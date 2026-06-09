@@ -171,7 +171,7 @@ const WarehouseModule = {
                 if (materialCode) {
                     // Переход на таблицу коробок
                     const title = `Коробки: ${materialCode}`;
-                    window.location.href = `/table-view.html?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}`;
+                    window.location.href = `/table-view?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}`;
                 }
             });
         });

@@ -85,6 +85,7 @@ func handleScanBox(w http.ResponseWriter, r *http.Request, hub *events.Hub) {
 }
 
 // processScan выполняет основную логику сканирования
+// processScan выполняет основную логику сканирования
 func processScan(req ScanRequest, hub *events.Hub) (*ScanResponse, error) {
 	logger.Info("[SCAN] Обработка: отгрузка=%d, материал=%s, бирка=%s",
 		req.ShipmentID, req.MaterialCode, req.LabelNumber)
@@ -107,8 +108,8 @@ func processScan(req ScanRequest, hub *events.Hub) (*ScanResponse, error) {
 		return nil, fmt.Errorf("коробка %s не найдена", req.LabelNumber)
 	}
 
-	logger.Info("[SCAN] Найдена коробка: HUID=%d, MaterialID=%s, Status=%s",
-		box.HUID, box.MaterialCode, box.CurrentStatus)
+	logger.Info("[SCAN] Найдена коробка: HUID=%d, MaterialID=%d, Status=%s",
+		box.HUID, box.MaterialID, box.CurrentStatus)
 
 	// 3. Проверяем, не отсканирована ли уже коробка в эту отгрузку
 	if box.ShipmentID != nil && *box.ShipmentID == req.ShipmentID {
@@ -135,13 +136,29 @@ func processScan(req ScanRequest, hub *events.Hub) (*ScanResponse, error) {
 		return nil, fmt.Errorf("коробка имеет статус '%s', требуется 'Произведена'", box.CurrentStatus)
 	}
 
-	// 7. Выполняем сканирование в БД
+	// ========== НОВАЯ ПРОВЕРКА: лимит по материалу ==========
+	// 7. Получаем информацию о деталях отгрузки для этого материала
+	shipmentDetails, err := database.GetShipmentDetailsByMaterial(req.ShipmentID, material.MaterialID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка получения деталей отгрузки: %w", err)
+	}
+	if shipmentDetails == nil {
+		return nil, fmt.Errorf("материал %s не найден в отгрузке %d", req.MaterialCode, req.ShipmentID)
+	}
+
+	// Проверяем, не превышен ли лимит коробок
+	if shipmentDetails.ScannedBoxes >= shipmentDetails.Boxes {
+		return nil, fmt.Errorf("для материала %s уже отсканировано максимальное количество коробок (%d/%d)",
+			req.MaterialCode, shipmentDetails.ScannedBoxes, shipmentDetails.Boxes)
+	}
+
+	// 8. Выполняем сканирование в БД
 	completed, err := database.ScanBoxForShipment(req.ShipmentID, box.HUID, material.MaterialID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка сканирования в БД: %w", err)
 	}
 
-	// 8. Отправляем WebSocket событие
+	// 9. Отправляем WebSocket событие
 	if hub != nil {
 		shipment, _ := database.GetShipmentByID(req.ShipmentID)
 		if shipment != nil {
