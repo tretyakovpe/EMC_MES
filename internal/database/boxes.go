@@ -1,14 +1,12 @@
 package database
 
 import (
+	"EMC_MES/internal/logger"
 	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 	"time"
-
-	"EMC_MES/internal/config"
-	"EMC_MES/internal/logger"
 )
 
 // HU представляет коробку (Handling Unit)
@@ -47,7 +45,6 @@ type StackResponse struct {
 func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT 
 			h.HUID,
@@ -68,23 +65,19 @@ func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 		)
 		ORDER BY hs.ChangedAt DESC
 	`
-
 	if limit > 0 {
 		query += fmt.Sprintf(" OFFSET 0 ROWS FETCH NEXT %d ROWS ONLY", limit)
 	}
-
 	rows, err := DB.QueryContext(ctx, query, status)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса коробок: %w", err)
 	}
 	defer rows.Close()
-
 	var boxes []BoxWithStatus
 	for rows.Next() {
 		var b BoxWithStatus
 		var huNumber sql.NullString
 		var shipmentID sql.NullInt32
-
 		err := rows.Scan(
 			&b.HUID,
 			&b.MaterialID,
@@ -98,7 +91,6 @@ func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 			logger.Error("Ошибка сканирования коробки: %v", err)
 			continue
 		}
-
 		if huNumber.Valid {
 			b.HUNumber = &huNumber.String
 		}
@@ -106,10 +98,8 @@ func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 			id := int(shipmentID.Int32)
 			b.ShipmentID = &id
 		}
-
 		boxes = append(boxes, b)
 	}
-
 	return boxes, nil
 }
 
@@ -117,7 +107,6 @@ func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 func GetBoxesByMaterial(materialID int, status string) ([]BoxWithStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT 
 			h.HUID,
@@ -137,33 +126,26 @@ func GetBoxesByMaterial(materialID int, status string) ([]BoxWithStatus, error) 
 			WHERE HUID = h.HUID
 		)
 	`
-
 	if status != "" {
 		query += " AND hs.Status = ?"
 	}
-
 	query += " ORDER BY hs.ChangedAt DESC"
-
 	var rows *sql.Rows
 	var err error
-
 	if status != "" {
 		rows, err = DB.QueryContext(ctx, query, materialID, status)
 	} else {
 		rows, err = DB.QueryContext(ctx, query, materialID)
 	}
-
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса коробок: %w", err)
 	}
 	defer rows.Close()
-
 	var boxes []BoxWithStatus
 	for rows.Next() {
 		var b BoxWithStatus
 		var huNumber sql.NullString
 		var shipmentID sql.NullInt32
-
 		err := rows.Scan(
 			&b.HUID,
 			&b.MaterialID,
@@ -177,7 +159,6 @@ func GetBoxesByMaterial(materialID int, status string) ([]BoxWithStatus, error) 
 			logger.Error("Ошибка сканирования коробки: %v", err)
 			continue
 		}
-
 		if huNumber.Valid {
 			b.HUNumber = &huNumber.String
 		}
@@ -185,10 +166,8 @@ func GetBoxesByMaterial(materialID int, status string) ([]BoxWithStatus, error) 
 			id := int(shipmentID.Int32)
 			b.ShipmentID = &id
 		}
-
 		boxes = append(boxes, b)
 	}
-
 	return boxes, nil
 }
 
@@ -196,7 +175,6 @@ func GetBoxesByMaterial(materialID int, status string) ([]BoxWithStatus, error) 
 func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT 
 			h.HUID,
@@ -215,11 +193,9 @@ func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
 			FROM HU_Status 
 			WHERE HUID = h.HUID
 		)`
-
 	var b BoxWithStatus
 	var huNumberDB sql.NullString
 	var shipmentID sql.NullInt32
-
 	err := DB.QueryRowContext(ctx, query, huNumber).Scan(
 		&b.HUID,
 		&b.MaterialID,
@@ -235,7 +211,6 @@ func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ошибка поиска коробки: %w", err)
 	}
-
 	if huNumberDB.Valid {
 		b.HUNumber = &huNumberDB.String
 	}
@@ -243,7 +218,6 @@ func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
 		id := int(shipmentID.Int32)
 		b.ShipmentID = &id
 	}
-
 	return &b, nil
 }
 
@@ -251,19 +225,16 @@ func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
 func GetBoxStatusHistory(huID int) ([]HUStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT id, HUID, Status, ChangedAt
 		FROM HU_Status
 		WHERE HUID = ?
 		ORDER BY ChangedAt ASC`
-
 	rows, err := DB.QueryContext(ctx, query, huID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса истории статусов: %w", err)
 	}
 	defer rows.Close()
-
 	var history []HUStatus
 	for rows.Next() {
 		var hs HUStatus
@@ -274,7 +245,6 @@ func GetBoxStatusHistory(huID int) ([]HUStatus, error) {
 		}
 		history = append(history, hs)
 	}
-
 	return history, nil
 }
 
@@ -282,7 +252,6 @@ func GetBoxStatusHistory(huID int) ([]HUStatus, error) {
 func GetProducedBoxesCount(fromDate, toDate time.Time) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT COUNT(DISTINCT h.HUID)
 		FROM HU h
@@ -290,7 +259,6 @@ func GetProducedBoxesCount(fromDate, toDate time.Time) (int, error) {
 		WHERE hs.Status = N'Произведена'
 		AND hs.ChangedAt >= ?
 		AND hs.ChangedAt <= ?`
-
 	var count int
 	err := DB.QueryRowContext(ctx, query, fromDate, toDate).Scan(&count)
 	if err != nil {
@@ -303,7 +271,6 @@ func GetProducedBoxesCount(fromDate, toDate time.Time) (int, error) {
 func GetProducedAmountByMaterial(fromDate, toDate time.Time) (map[string]int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT 
 			m.MaterialCode,
@@ -316,13 +283,11 @@ func GetProducedAmountByMaterial(fromDate, toDate time.Time) (map[string]int, er
 		AND hs.ChangedAt <= ?
 		GROUP BY m.MaterialCode
 		ORDER BY m.MaterialCode`
-
 	rows, err := DB.QueryContext(ctx, query, fromDate, toDate)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса статистики: %w", err)
 	}
 	defer rows.Close()
-
 	result := make(map[string]int)
 	for rows.Next() {
 		var materialCode string
@@ -331,9 +296,8 @@ func GetProducedAmountByMaterial(fromDate, toDate time.Time) (map[string]int, er
 			logger.Error("Ошибка сканирования статистики: %v", err)
 			continue
 		}
-		result[materialCode] = amount
+		result[strings.TrimSpace(materialCode)] = amount
 	}
-
 	return result, nil
 }
 
@@ -341,7 +305,6 @@ func GetProducedAmountByMaterial(fromDate, toDate time.Time) (map[string]int, er
 func GetBoxesGroupedByMaterial() ([]map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT 
 			m.MaterialCode,
@@ -359,24 +322,20 @@ func GetBoxesGroupedByMaterial() ([]map[string]interface{}, error) {
 		)
 		GROUP BY m.MaterialCode, m.Description
 		ORDER BY m.MaterialCode`
-
 	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка группировки коробок: %w", err)
 	}
 	defer rows.Close()
-
 	var groups []map[string]interface{}
 	for rows.Next() {
 		var materialCode, description string
 		var boxCount, totalAmount int
-
 		err := rows.Scan(&materialCode, &description, &boxCount, &totalAmount)
 		if err != nil {
 			logger.Error("Ошибка сканирования группы: %v", err)
 			continue
 		}
-
 		group := map[string]interface{}{
 			"materialCode": strings.TrimSpace(materialCode),
 			"description":  strings.TrimSpace(description),
@@ -385,7 +344,6 @@ func GetBoxesGroupedByMaterial() ([]map[string]interface{}, error) {
 		}
 		groups = append(groups, group)
 	}
-
 	return groups, nil
 }
 
@@ -393,7 +351,6 @@ func GetBoxesGroupedByMaterial() ([]map[string]interface{}, error) {
 func GetBoxesByShipment(shipmentID int) ([]BoxWithStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	query := `
 		SELECT 
 			h.HUID,
@@ -413,19 +370,16 @@ func GetBoxesByShipment(shipmentID int) ([]BoxWithStatus, error) {
 			WHERE HUID = h.HUID
 		)
 		ORDER BY hs.ChangedAt DESC`
-
 	rows, err := DB.QueryContext(ctx, query, shipmentID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса коробок в отгрузке: %w", err)
 	}
 	defer rows.Close()
-
 	var boxes []BoxWithStatus
 	for rows.Next() {
 		var b BoxWithStatus
 		var huNumber sql.NullString
 		var shipmentIDVal sql.NullInt32
-
 		err := rows.Scan(
 			&b.HUID,
 			&b.MaterialID,
@@ -439,7 +393,6 @@ func GetBoxesByShipment(shipmentID int) ([]BoxWithStatus, error) {
 			logger.Error("Ошибка сканирования коробки: %v", err)
 			continue
 		}
-
 		if huNumber.Valid {
 			b.HUNumber = &huNumber.String
 		}
@@ -447,56 +400,48 @@ func GetBoxesByShipment(shipmentID int) ([]BoxWithStatus, error) {
 			id := int(shipmentIDVal.Int32)
 			b.ShipmentID = &id
 		}
-
 		boxes = append(boxes, b)
 	}
-
 	return boxes, nil
 }
 
-// CompletedBoxInfo информация о готовой коробке
-type CompletedBoxInfo struct {
-	Label        string
-	Amount       int
-	MaterialCode string
-}
-
-// GetCompletedBoxesForShift возвращает готовые коробки за смену
-func GetCompletedBoxesForShift(lineName string, dateTime time.Time, shift string) (map[string][]CompletedBoxInfo, error) {
+// GetWarehouseStacks возвращает сгруппированные коробки для склада ГП
+func GetWarehouseStacks() ([]StackResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	cfg := config.GetConfig()
-	// Определяем границы смены
-	shiftStart, shiftEnd := cfg.GetShiftBounds(shift)
-
 	query := `
-    SELECT 
-        p.label,
-        p.amount,
-        RTRIM(p.material) as materialCode
-    FROM prod p
-    WHERE RTRIM(p.line) = ?
-      AND p.date = ?
-      AND p.time >= ? 
-      AND p.time <= ?
-    ORDER BY p.time
-`
-	rows, err := DB.QueryContext(ctx, query, lineName, dateTime.Format("2006-01-02"), shiftStart, shiftEnd)
+		SELECT 
+			m.MaterialCode,
+			m.MaterialID,
+			COUNT(h.HUID) as BoxCount,
+			SUM(h.Amount) as TotalAmount
+		FROM HU h
+		JOIN materials m ON h.MaterialID = m.MaterialID
+		JOIN HU_Status hs ON h.HUID = hs.HUID
+		WHERE hs.Status = N'Произведена'
+		  AND (h.ShipmentID IS NULL OR h.ShipmentID = 0)
+		  AND hs.ChangedAt = (
+			  SELECT MAX(ChangedAt) 
+			  FROM HU_Status 
+			  WHERE HUID = h.HUID
+		  )
+		GROUP BY m.MaterialCode, m.MaterialID
+		ORDER BY m.MaterialCode`
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка запроса готовых коробок: %w", err)
+		return nil, fmt.Errorf("ошибка запроса склада: %w", err)
 	}
 	defer rows.Close()
-
-	result := make(map[string][]CompletedBoxInfo)
+	var stacks []StackResponse
 	for rows.Next() {
-		var info CompletedBoxInfo
-		err := rows.Scan(&info.Label, &info.Amount, &info.MaterialCode)
+		var s StackResponse
+		err := rows.Scan(&s.MaterialCode, &s.MaterialID, &s.BoxCount, &s.TotalAmount)
 		if err != nil {
+			logger.Error("Ошибка сканирования стека: %v", err)
 			continue
 		}
-		result[info.MaterialCode] = append(result[info.MaterialCode], info)
+		s.MaterialCode = strings.TrimSpace(s.MaterialCode)
+		stacks = append(stacks, s)
 	}
-
-	return result, nil
+	return stacks, nil
 }

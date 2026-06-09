@@ -317,14 +317,12 @@ func CreatePlan(planDate time.Time, shift *string, materialID int, plannedAmount
 		plannedAmount,
 		createdBy,
 	).Scan(&planID)
-
 	if err != nil {
 		return 0, fmt.Errorf("ошибка создания плана: %w", err)
 	}
 
 	logger.Info("[DB] Создан план: MaterialID=%d, Date=%s, Amount=%d", materialID, planDate.Format("2006-01-02"), plannedAmount)
 	return planID, nil
-
 }
 
 // UpdatePlan обновляет существующий план (перезапись)
