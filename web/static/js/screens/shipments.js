@@ -419,6 +419,14 @@ const ShipmentsModule = {
                     alert('Ошибки:\n' + result.errors.join('\n'));
                 }
 
+                if (result.warnings && result.warnings.length) {
+                    console.log('Предупреждения:', result.warnings);
+                    // Можно показать неблокирующим уведомлением
+                    const warningDiv = document.createElement('div');
+                    warningDiv.style.cssText = 'background: #ffcc00; color: #333; padding: 8px; margin: 10px 0; border-radius: 4px;';
+                    warningDiv.innerHTML = '⚠️ ' + result.warnings.join('<br>⚠️ ');
+                    document.getElementById('parse-result-section').prepend(warningDiv);
+                }
                 this.renderParseResult(result);
                 document.getElementById('parse-result-section').style.display = 'block';
             } catch (error) {
@@ -469,14 +477,15 @@ const ShipmentsModule = {
         const container = document.getElementById('parse-result-table');
 
         let html = '<table class="parse-result-table">';
-        html += '<thead><table><th>CustomerCode</th><th>MaterialCode</th><th>Количество</th><th>Статус</th></thead><tbody>';
+        html += '<thead><th> Артикул </th><th> Материал </th><th> Штук </th><th> HU </th><th> Статус </th></thead><tbody>';
 
         for (const row of result.rows) {
-            const status = row.valid ? '✅ Найден' : `❌ ${row.error || 'Не найден'}`;
+            const status = row.valid ? '✅' : `❌ ${row.error || 'Не найден'}`;
             html += `<tr class="${row.valid ? 'valid-row' : 'invalid-row'}">
-                    <td>${this.escapeHtml(row.customerCode)}</td>
-                    <td>${this.escapeHtml(row.materialCode || '—')}</td>
-                    <td>${row.boxes}</td>
+                    <td>${this.escapeHtml(row.customerCode)} </td>
+                    <td>${this.escapeHtml(row.materialCode || '—')} </td>
+                    <td>${row.amount} </td>
+                    <td>${row.boxes} </td>
                     <td>${status}</td>
                  </tr>`;
         }

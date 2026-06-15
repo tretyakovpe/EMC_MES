@@ -1,12 +1,11 @@
 package database
 
 import (
+	"EMC_MES/internal/logger"
 	"context"
 	"database/sql"
 	"fmt"
 	"time"
-
-	"EMC_MES/internal/logger"
 )
 
 // Shipment представляет отгрузочную накладную
@@ -233,7 +232,7 @@ func ScanBoxForShipment(shipmentID int, huID int, materialID int) (bool, error) 
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return false, fmt.Errorf("материал %s не найден в отгрузке %d", materialID, shipmentID)
+		return false, fmt.Errorf("материал %d не найден в отгрузке %d", materialID, shipmentID)
 	}
 
 	// 2. Обновляем HU
