@@ -1,13 +1,12 @@
 package api
 
 import (
+	"EMC_MES/internal/events"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"EMC_MES/internal/events"
 )
 
 var globalHub *events.Hub
@@ -28,7 +27,9 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/logistics", serveLogistics)
 	mux.HandleFunc("/quality", serveQuality)
 	mux.HandleFunc("/table-view", serveTableView) // без .html
-
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/static/images/favicon.ico", http.StatusMovedPermanently)
+	})
 	// ==================== ВЕБСОКЕТ ====================
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(globalHub, w, r)

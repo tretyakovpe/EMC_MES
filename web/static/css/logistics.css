@@ -648,11 +648,11 @@
     background: #6c757d;
     color: white;
     border: none;
-    padding: 10px;
+    padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 13px;
-    width: 100%;
+    transition: all 0.2s;
 }
 
 .btn-secondary:hover {
@@ -712,6 +712,17 @@
 
 .clipboard-modal-body {
     padding: 20px;
+}
+
+.close-modal-btn {
+    background: #5a6268;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
 }
 
 .clipboard-step {

@@ -1,13 +1,12 @@
 package database
 
 import (
+	"EMC_MES/internal/logger"
 	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 	"time"
-
-	"EMC_MES/internal/logger"
 )
 
 // LineConfig конфигурация линии из таблицы plc
@@ -380,15 +379,15 @@ func GetLineStats(lineName string) (counter, boxQuantity int, material string, e
 
 	query := `
         SELECT 
-            last_counter,
-            last_box_quantity,
-            last_material
+            ISNULL(last_counter, 0) as last_counter,
+            ISNULL(last_box_quantity, 0) as last_box_quantity,
+            ISNULL(RTRIM(last_material), '-') as last_material
         FROM [dbo].[plc]
         WHERE [name] = ?`
 
 	err = DB.QueryRowContext(ctx, query, lineName).Scan(&counter, &boxQuantity, &material)
 	if err == sql.ErrNoRows {
-		return 0, 0, "", nil
+		return 0, 0, "-", nil
 	}
 	return
 }

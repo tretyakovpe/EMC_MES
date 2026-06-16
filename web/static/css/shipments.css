@@ -38,7 +38,7 @@
 /* Сетка карточек отгрузок */
 .shipments-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     padding: 4px;
     overflow-y: auto;
@@ -58,7 +58,7 @@
 
 .shipment-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .shipment-card.active {
@@ -153,6 +153,7 @@
         opacity: 0;
         transform: translateX(20px);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -296,7 +297,7 @@
 }
 
 .btn-close:hover {
-    background: rgba(0,0,0,0.1);
+    background: rgba(0, 0, 0, 0.1);
 }
 
 /* Пикер материалов (модальное окно) */
@@ -306,7 +307,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -320,7 +321,7 @@
     max-width: 90%;
     max-height: 80%;
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
 .picker-header {
@@ -398,7 +399,8 @@
 }
 
 /* Состояния */
-.loading, .empty-state {
+.loading,
+.empty-state {
     text-align: center;
     padding: 40px;
     color: #666;
@@ -415,11 +417,11 @@
     .shipments-layout {
         flex-direction: column;
     }
-    
+
     .shipment-editor-panel {
         width: 100%;
     }
-    
+
     .shipments-grid {
         grid-template-columns: repeat(2, 1fr);
     }
