@@ -63,6 +63,9 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
 	mux.HandleFunc("/api/plans/", handlePlanByID)
 
+	// Видео
+	mux.HandleFunc("/api/video", handleGetVideo)
+
 	// Сменное задание
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
