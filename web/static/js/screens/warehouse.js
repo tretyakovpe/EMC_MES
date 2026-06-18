@@ -28,7 +28,6 @@ const WarehouseModule = {
             <div class="logistics-container">
                 <div class="warehouse-header">
                     <h3>🏭 Склад готовой продукции</h3>
-                    <button id="refresh-warehouse" class="btn-refresh">🔄 Обновить</button>
                 </div>
                 <div id="warehouse-content" class="warehouse-content">
                     <div class="loading">Загрузка...</div>
@@ -42,16 +41,11 @@ const WarehouseModule = {
         // Рендерим
         this.renderStacks();
 
-        // Обновление по кнопке
-        document.getElementById('refresh-warehouse')?.addEventListener('click', () => {
-            this.refreshData();
-        });
-
         // WebSocket для реального времени
         this.initWebSocket();
 
         // Автообновление каждые 10 секунд
-        this.updateInterval = setInterval(() => this.refreshData(), 10000);
+        //this.updateInterval = setInterval(() => this.refreshData(), 10000);
 
         console.log('WarehouseModule initialized');
     },
@@ -171,7 +165,7 @@ const WarehouseModule = {
                 if (materialCode) {
                     // Переход на таблицу коробок
                     const title = `Коробки: ${materialCode}`;
-                    window.location.href = `/table-view?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}`;
+                    window.location.href = `/table-view?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}&status="Произведена"`;
                 }
             });
         });

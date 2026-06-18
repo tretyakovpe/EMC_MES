@@ -4,7 +4,8 @@ function getQueryParams() {
     return {
         view: params.get('view'),           // 'boxes-by-material'
         materialCode: params.get('material'),
-        title: params.get('title')
+        title: params.get('title'),
+        status: params.get('status')
     };
 }
 
@@ -12,7 +13,7 @@ function getQueryParams() {
 const tableConfigs = {
     'boxes-by-material': {
         title: 'Коробки по материалу',
-        apiUrl: (params) => `/api/boxes?materialCode=${encodeURIComponent(params.materialCode)}&status=Произведена`,
+        apiUrl: (params) => `/api/boxes?materialCode=${encodeURIComponent(params.materialCode)}&status="${encodeURIComponent(params.status)}"`,
         columns: [
             { key: 'huNumber', title: 'Номер бирки' },
             { key: 'productionDate', title: 'Дата производства' },
@@ -43,22 +44,22 @@ function formatDate(dateStr) {
 async function loadTableData() {
     const params = getQueryParams();
     const config = tableConfigs[params.view];
-    
+
     if (!config) {
         document.getElementById('table-content').innerHTML = '<div class="empty">❌ Неизвестный тип таблицы</div>';
         return;
     }
-    
+
     // Устанавливаем заголовок
     const title = params.title || config.title;
     document.getElementById('page-title').textContent = title;
-    
+
     try {
         const url = config.apiUrl(params);
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        
+
         renderTable(config, data);
     } catch (error) {
         console.error('Ошибка загрузки:', error);
@@ -69,22 +70,22 @@ async function loadTableData() {
 // Отрисовка таблицы
 function renderTable(config, data) {
     const container = document.getElementById('table-content');
-    
+
     if (!data || data.length === 0) {
         container.innerHTML = '<div class="empty">📭 Нет данных</div>';
         return;
     }
-    
+
     // Создаём таблицу
     let html = '<table class="data-table">';
-    
+
     // Заголовки
     html += '<thead><tr>';
     for (const col of config.columns) {
         html += `<th>${col.title}</th>`;
     }
     html += '</tr></thead>';
-    
+
     // Строки
     html += '<tbody>';
     data.forEach((item, index) => {
@@ -99,7 +100,7 @@ function renderTable(config, data) {
         html += '</tr>';
     });
     html += '</tbody></table>';
-    
+
     container.innerHTML = html;
 }
 

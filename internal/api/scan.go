@@ -1,14 +1,13 @@
 package api
 
 import (
+	"EMC_MES/internal/database"
+	"EMC_MES/internal/events"
+	"EMC_MES/internal/logger"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-
-	"EMC_MES/internal/database"
-	"EMC_MES/internal/events"
-	"EMC_MES/internal/logger"
 )
 
 // ScanRequest структура запроса на сканирование
@@ -85,7 +84,6 @@ func handleScanBox(w http.ResponseWriter, r *http.Request, hub *events.Hub) {
 }
 
 // processScan выполняет основную логику сканирования
-// processScan выполняет основную логику сканирования
 func processScan(req ScanRequest, hub *events.Hub) (*ScanResponse, error) {
 	logger.Info("[SCAN] Обработка: отгрузка=%d, материал=%s, бирка=%s",
 		req.ShipmentID, req.MaterialCode, req.LabelNumber)
@@ -136,7 +134,6 @@ func processScan(req ScanRequest, hub *events.Hub) (*ScanResponse, error) {
 		return nil, fmt.Errorf("коробка имеет статус '%s', требуется 'Произведена'", box.CurrentStatus)
 	}
 
-	// ========== НОВАЯ ПРОВЕРКА: лимит по материалу ==========
 	// 7. Получаем информацию о деталях отгрузки для этого материала
 	shipmentDetails, err := database.GetShipmentDetailsByMaterial(req.ShipmentID, material.MaterialID)
 	if err != nil {

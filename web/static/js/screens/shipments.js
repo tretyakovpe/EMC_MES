@@ -101,7 +101,7 @@ const ShipmentsModule = {
     },
 
     getStatusText(shipment) {
-        if (shipment.done) return '✅ Отгружена';
+        if (shipment.done) return '🚚 Отгружена';
         if (shipment.completed) return '📦 Готова';
         return '🔄 В работе';
     },

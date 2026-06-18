@@ -1,6 +1,8 @@
 package api
 
 import (
+	"EMC_MES/internal/database"
+	"EMC_MES/internal/logger"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -9,9 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"EMC_MES/internal/database"
-	"EMC_MES/internal/logger"
 )
 
 // BoxResponse структура ответа для коробки
@@ -67,17 +66,16 @@ func handleBoxes(w http.ResponseWriter, r *http.Request) {
 // handleGetBoxes возвращает список коробок с фильтрацией
 func handleGetBoxes(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
-	materialIDStr := r.URL.Query().Get("materialId")
+	materialIDStr := r.URL.Query().Get("materialCode")
 	grouped := r.URL.Query().Get("grouped") == "true"
-
 	// Если нужна группировка по материалам (для склада ГП)
 	if grouped {
 		handleGetBoxesGrouped(w, r)
 		return
 	}
 
-	// Фильтр по статусу
-	if status != "" {
+	// Фильтр по статусу используется для создания отгрузок
+	if materialIDStr == "" && status != "" {
 		limit := 0
 		if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 			l, err := strconv.Atoi(limitStr)
@@ -104,15 +102,14 @@ func handleGetBoxes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Фильтр по материалу
+	// Фильтр по материалу Используется на складе ГП
 	if materialIDStr != "" {
-		materialID, err := strconv.Atoi(materialIDStr)
+		materialID, err := database.GetMaterialID(materialIDStr)
 		if err != nil {
 			http.Error(w, "Invalid materialId", http.StatusBadRequest)
 			return
 		}
-
-		boxes, err := database.GetBoxesByMaterial(materialID, "")
+		boxes, err := database.GetBoxesByMaterial(materialID, status)
 		if err != nil {
 			logger.Error("API /api/boxes (by material): %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)

@@ -64,7 +64,6 @@ func GetShipments(completed, done *bool, fromDate, toDate *time.Time) ([]Shipmen
 	}
 
 	query += " ORDER BY Date DESC, ShipmentID DESC"
-
 	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса отгрузок: %w", err)

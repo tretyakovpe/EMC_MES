@@ -58,6 +58,7 @@ func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 		JOIN materials m ON h.MaterialID = m.MaterialID
 		JOIN HU_Status hs ON h.HUID = hs.HUID
 		WHERE hs.Status = ?
+		AND m.CustomerCode != 'ВНУТРЕННИЙ' 
 		AND hs.ChangedAt = (
 			SELECT MAX(ChangedAt) 
 			FROM HU_Status 
@@ -124,16 +125,16 @@ func GetBoxesByMaterial(materialID int, status string) ([]BoxWithStatus, error) 
 			SELECT MAX(ChangedAt) 
 			FROM HU_Status 
 			WHERE HUID = h.HUID
-		)
+		) AND h.ShipmentID IS NULL
 	`
 	if status != "" {
-		query += " AND hs.Status = ?"
+		query += " AND hs.Status = 'Произведена'"
 	}
 	query += " ORDER BY hs.ChangedAt DESC"
 	var rows *sql.Rows
 	var err error
 	if status != "" {
-		rows, err = DB.QueryContext(ctx, query, materialID, status)
+		rows, err = DB.QueryContext(ctx, query, materialID)
 	} else {
 		rows, err = DB.QueryContext(ctx, query, materialID)
 	}
