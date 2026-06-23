@@ -80,6 +80,30 @@ class StatisticsScreen {
                 </div>
             </div>
         `;
+        // Модальное окно для бирки
+        this.container.innerHTML += `
+    <div class="modal fade" id="labelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🖨 Бирка</h5>
+                </div>
+                <div class="modal-body" id="labelModalBody" style="text-align: center; padding: 10px;">
+                    <div id="labelLoading" style="padding: 10px;">
+                        <p>⏳ Загрузка бирки...</p>
+                    </div>
+                    <div id="labelPreview" style="display: none;">
+						<embed id="labelEmbed" src="" type="application/pdf" width="100%" height="250px" style="border: none;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" id="saveLabelBtn" class="btn-primary">💾 Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+`;
+
 
         await this.loadLines();
         await this.loadData();
@@ -245,8 +269,10 @@ class StatisticsScreen {
         const viewBtn = document.getElementById('view-label-btn');
         if (viewBtn) {
             viewBtn.addEventListener('click', () => {
-                if (this.selectedBox) {
-                    alert(`Просмотр бирки ${this.selectedBox.label}\nФункция в разработке`);
+                if (this.selectedBox && this.selectedBox.label) {
+                    this.openLabelModal(this.selectedBox.label);
+                } else {
+                    alert('Выберите коробку');
                 }
             });
         }
@@ -259,7 +285,36 @@ class StatisticsScreen {
                 }
             });
         }
+        // Закрытие модального окна бирки
+        const closeLabelBtn = document.querySelector('.close-modal-label');
+        if (closeLabelBtn) {
+            closeLabelBtn.addEventListener('click', () => this.closeLabelModal());
+        }
+        const closeLabelFooterBtn = document.querySelector('.btn-close-modal-label');
+        if (closeLabelFooterBtn) {
+            closeLabelFooterBtn.addEventListener('click', () => this.closeLabelModal());
+        }
+        document.getElementById('labelModal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeLabelModal();
+            }
+        });
 
+        // Кнопка "Сохранить" (скачать PDF)
+        const saveLabelBtn = document.getElementById('saveLabelBtn');
+        if (saveLabelBtn) {
+            saveLabelBtn.addEventListener('click', () => {
+                const iframe = document.getElementById('labelIframe');
+                if (iframe && iframe.src && iframe.src !== 'about:blank') {
+                    const link = document.createElement('a');
+                    link.href = iframe.src;
+                    link.download = `${this.selectedBox?.label || 'label'}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+        }
         // Обработка кнопок видео
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('btn-video')) {
@@ -314,6 +369,50 @@ class StatisticsScreen {
         }
         document.body.style.overflow = '';
     }
+openLabelModal(labelNumber) {
+    const modal = document.getElementById('labelModal');
+    const embed = document.getElementById('labelEmbed');
+    const loading = document.getElementById('labelLoading');
+    const preview = document.getElementById('labelPreview');
+    
+    if (!modal) return;
+    
+    loading.style.display = 'block';
+    preview.style.display = 'none';
+    embed.src = '';
+    
+    // Загружаем PDF через embed
+    embed.src = `/api/boxes/view/${encodeURIComponent(labelNumber)}`;
+    embed.type = 'application/pdf';
+    
+    // Обработчик загрузки
+    embed.onload = () => {
+        loading.style.display = 'none';
+        preview.style.display = 'block';
+    };
+    
+    // Если embed не может загрузить PDF, показываем ошибку через 5 секунд
+    setTimeout(() => {
+        if (loading.style.display !== 'none') {
+            loading.innerHTML = '<p>❌ Не удалось загрузить бирку</p>';
+        }
+    }, 10000);
+    
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+    closeLabelModal() {
+    const modal = document.getElementById('labelModal');
+    const embed = document.getElementById('labelEmbed');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    if (embed) {
+        embed.src = '';
+    }
+    document.body.style.overflow = '';
+}
 
     escapeHtml(str) {
         if (!str) return '';

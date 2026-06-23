@@ -53,6 +53,8 @@ func SetupRoutes() *http.ServeMux {
 	// Коробки
 	mux.HandleFunc("/api/boxes", handleBoxes)
 	mux.HandleFunc("/api/boxes/stats", GetBoxesStats)
+	// Печать бирки
+	mux.HandleFunc("/api/boxes/view/", handleViewLabel)
 	mux.HandleFunc("/api/boxes/", handleBoxByID)
 
 	// Планы

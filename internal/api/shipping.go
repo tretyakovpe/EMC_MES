@@ -276,14 +276,13 @@ func handleDeleteShipment(w http.ResponseWriter, r *http.Request, shipmentID int
 	})
 }
 
-// handleGetScannedBoxes возвращает список отсканированных коробок для отгрузки
+// handleGetScannedBoxes возвращает список отсканированных коробок, сгруппированных по материалам
 func handleGetScannedBoxes(w http.ResponseWriter, r *http.Request, shipmentID int) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Получаем список отсканированных HUNumber
 	scannedBoxes, err := database.GetScannedBoxesByShipment(shipmentID)
 	if err != nil {
 		logger.Error("API /api/shipments/%d/scanned: %v", shipmentID, err)
@@ -291,7 +290,17 @@ func handleGetScannedBoxes(w http.ResponseWriter, r *http.Request, shipmentID in
 		return
 	}
 
-	// Возвращаем JSON массив строк (номера бирок)
+	// Добавляем пустые массивы для материалов, которые есть в отгрузке, но ещё не отсканированы
+	shipment, err := database.GetShipmentByID(shipmentID)
+	if err == nil && shipment != nil {
+		for _, detail := range shipment.Details {
+			materialCode := strings.TrimSpace(detail.MaterialCode)
+			if _, exists := scannedBoxes[materialCode]; !exists {
+				scannedBoxes[materialCode] = []string{}
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(scannedBoxes)
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -422,4 +423,35 @@ func GetBoxByHUNumber(huNumber string) (*BoxWithStatus, error) {
 		b.ShipmentID = &id
 	}
 	return &b, nil
+}
+
+// handleViewLabel возвращает PDF бирку для просмотра
+func handleViewLabel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Извлекаем labelNumber из URL: /api/boxes/view/TEST123456
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		http.Error(w, "Missing label number", http.StatusBadRequest)
+		return
+	}
+	labelNumber := parts[4]
+
+	// Путь к папке PDF в Data Collector
+	// C:\ProductionManagement\DataCollector\PDF
+	dataCollectorDir := `C:\ProductionManagement\DataCollector`
+	pdfDir := filepath.Join(dataCollectorDir, "PDF")
+
+	// Ищем файл по маске *{labelNumber}*.pdf
+	pattern := filepath.Join(pdfDir, labelNumber+".pdf")
+	logger.Error("API ищем бирку по адресу: %s", pattern)
+	pdfPath := pattern
+
+	// Отдаём PDF для просмотра в браузере (inline)
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "inline; filename=\""+filepath.Base(pdfPath)+"\"")
+	http.ServeFile(w, r, pdfPath)
 }

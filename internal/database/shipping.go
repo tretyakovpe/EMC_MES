@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -420,17 +421,20 @@ func GetShipmentProgress(shipmentID int) (int, error) {
 	return (totalScanned * 100) / totalBoxes, nil
 }
 
-// GetScannedBoxesByShipment возвращает список номеров бирок, отсканированных в отгрузку
-func GetScannedBoxesByShipment(shipmentID int) ([]string, error) {
+// GetScannedBoxesByShipment возвращает карту materialCode -> []HUNumber
+func GetScannedBoxesByShipment(shipmentID int) (map[string][]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	query := `
-		SELECT h.HUNumber
+		SELECT 
+			m.MaterialCode,
+			h.HUNumber
 		FROM HU h
+		JOIN materials m ON h.MaterialID = m.MaterialID
 		WHERE h.ShipmentID = ?
 		  AND h.HUNumber IS NOT NULL
-		ORDER BY h.HUID ASC
+		ORDER BY m.MaterialCode, h.HUID ASC
 	`
 
 	rows, err := DB.QueryContext(ctx, query, shipmentID)
@@ -439,17 +443,19 @@ func GetScannedBoxesByShipment(shipmentID int) ([]string, error) {
 	}
 	defer rows.Close()
 
-	var scannedBoxes []string
+	result := make(map[string][]string)
 	for rows.Next() {
+		var materialCode string
 		var huNumber string
-		if err := rows.Scan(&huNumber); err != nil {
-			logger.Error("Ошибка сканирования HUNumber: %v", err)
+		if err := rows.Scan(&materialCode, &huNumber); err != nil {
+			logger.Error("Ошибка сканирования: %v", err)
 			continue
 		}
-		scannedBoxes = append(scannedBoxes, huNumber)
+		materialCode = strings.TrimSpace(materialCode)
+		result[materialCode] = append(result[materialCode], huNumber)
 	}
 
-	return scannedBoxes, nil
+	return result, nil
 }
 
 // GetShipmentDetailsByMaterial возвращает детали отгрузки по материалу
