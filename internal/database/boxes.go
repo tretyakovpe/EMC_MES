@@ -64,7 +64,7 @@ func GetBoxesByStatus(status string, limit int) ([]BoxWithStatus, error) {
 			FROM HU_Status 
 			WHERE HUID = h.HUID
 		)
-		ORDER BY hs.ChangedAt DESC
+		ORDER BY m.MaterialCode 
 	`
 	if limit > 0 {
 		query += fmt.Sprintf(" OFFSET 0 ROWS FETCH NEXT %d ROWS ONLY", limit)

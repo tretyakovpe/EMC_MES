@@ -158,7 +158,7 @@ const ShipmentsModule = {
     async showMaterialsPicker() {
         try {
             // Получаем доступные коробки (со статусом "Произведена")
-            const boxes = await API.getBoxes({ status: 'Произведена', limit: 100 });
+            const boxes = await API.getBoxes({ status: 'Произведена', limit: 0 });
 
             // Группируем по материалам
             const materialsMap = new Map();
