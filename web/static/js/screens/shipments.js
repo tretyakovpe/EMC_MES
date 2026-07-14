@@ -31,6 +31,10 @@ const ShipmentsModule = {
                             <label>Номер накладной:</label>
                             <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
                         </div>
+                        <div class="shipment-number-input">
+                            <label>Дата отгрузки:</label>
+                            <input type="date" id="shipment-date" class="form-input">
+                        </div>                        
                         <div class="shipment-items-list" id="shipment-items-list">
                             <div class="empty-items">Добавьте материалы</div>
                         </div>
@@ -147,11 +151,16 @@ const ShipmentsModule = {
     },
 
     startNewShipment() {
-        // Очищаем текущие данные
         this.shipmentItems = [];
+        this.currentShipmentNumber = null;
         document.getElementById('shipment-number').value = '';
+
+        // Устанавливаем завтрашнюю дату
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('shipment-date').value = tomorrow.toISOString().slice(0, 10);
+
         this.renderShipmentItems();
-        // Сразу показываем пикер материалов
         this.showMaterialsPicker();
     },
 
@@ -293,16 +302,22 @@ const ShipmentsModule = {
             return;
         }
 
+        const shipmentDate = document.getElementById('shipment-date')?.value;
+        if (!shipmentDate) {
+            alert('Выберите дату отгрузки');
+            return;
+        }
+
         const details = this.shipmentItems.map(item => ({
             materialId: item.materialId,
             boxes: item.boxes,
-            amount: item.boxes * 50  // пример: 50 деталей в коробке
+            amount: item.boxes * 50
         }));
 
         try {
             const result = await API.createShipment({
                 number: parseInt(shipmentNumber),
-                date: new Date().toISOString().slice(0, 10),
+                date: shipmentDate,  // ← используем дату из datepicker
                 details: details
             });
 
@@ -347,8 +362,12 @@ const ShipmentsModule = {
     closeEditor() {
         this.shipmentItems = [];
         this.renderShipmentItems();
-        document.getElementById('shipment-editor').style.display = 'none';
-        document.getElementById('shipment-number').value = '';
+        const editor = document.getElementById('shipment-editor');
+        const numberInput = document.getElementById('shipment-number');
+        const dateInput = document.getElementById('shipment-date');
+        if (editor) editor.style.display = 'none';
+        if (numberInput) numberInput.value = '';
+        if (dateInput) dateInput.value = '';
     },
 
     closePicker() {

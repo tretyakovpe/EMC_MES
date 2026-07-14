@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"EMC_MES/internal/database"
@@ -178,33 +176,20 @@ func handleGetLinesForFilter(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// handleGetVideo возвращает видеофайл для просмотра
-func handleGetVideo(w http.ResponseWriter, r *http.Request) {
+// handleShippingScreen возвращает данные для экрана отгрузок
+func handleShippingScreen(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	filename := r.URL.Query().Get("file")
-	if filename == "" {
-		http.Error(w, "Missing file parameter", http.StatusBadRequest)
+	items, err := database.GetShippingScreenData()
+	if err != nil {
+		logger.Error("API /api/shipping-screen: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Путь к папке video в Data Collector
-
-	dataCollectorDir := `C:\ProductionManagement\DataCollector`
-	videoDir := filepath.Join(dataCollectorDir, "video")
-	fullPath := filepath.Join(videoDir, filename)
-
-	// Проверяем существование файла
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		logger.Error("Видео в %s не найдено", fullPath)
-		http.Error(w, "Video not found", http.StatusNotFound)
-		return
-	}
-
-	// Отдаём файл
-	w.Header().Set("Content-Type", "video/mp4")
-	http.ServeFile(w, r, fullPath)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
 }

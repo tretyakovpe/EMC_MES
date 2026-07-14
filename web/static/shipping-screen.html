@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Планируемые отгрузки</title>
+    <link rel="stylesheet" href="/static/css/shipping-screen.css">
+</head>
+<body>
+    <div class="screen-container">
+        <div class="header">
+            <h1>🚛 ПЛАНИРУЕМЫЕ ОТГРУЗКИ</h1>
+            <div class="time" id="currentTime">--:--:--</div>
+        </div>
+        <div class="table-wrapper">
+            <table id="shippingTable">
+                <thead>
+                    <tr>
+                        <th>Артикул</th>
+                        <th>Материал</th>
+                        <th>Кол-во</th>
+                        <th>Назначение</th>
+                        <th>Сегодня</th>
+                        <th>Завтра</th>
+                        <th>Послезавтра</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="7" style="text-align:center; padding:40px; font-size:24px;">⏳ Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="footer">
+            <span>Обновлено: <span id="updateTime">--:--:--</span></span>
+            <span>🔄 Автообновление через <span id="countdown">60</span> сек</span>
+        </div>
+    </div>
+    <script src="/static/js/shipping-screen.js"></script>
+</body>
+</html>

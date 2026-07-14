@@ -764,3 +764,18 @@
 .invalid-row {
     background: #ffd4d4;
 }
+
+/* Datepicker в правой панели */
+.shipment-number-input input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 14px;
+}
+
+.shipment-number-input input[type="date"]:focus {
+    outline: none;
+    border-color: #cc0000;
+}

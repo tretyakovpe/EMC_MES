@@ -66,9 +66,6 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
 	mux.HandleFunc("/api/plans/", handlePlanByID)
 
-	// Видео
-	mux.HandleFunc("/api/video", handleGetVideo)
-
 	// Сменное задание
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
@@ -118,6 +115,16 @@ func SetupRoutes() *http.ServeMux {
 
 		http.NotFound(w, r)
 	})
+
+	// Экран отгрузок (HTML страница)
+	mux.HandleFunc("/shipping-screen", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/shipping-screen.html")
+	})
+
+	// API для экрана отгрузок
+	mux.HandleFunc("/api/shipping-screen", handleShippingScreen)
+
 	// Видео стрим
 	mux.HandleFunc("/api/video/stream", handleVideoStream)
 

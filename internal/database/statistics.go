@@ -9,6 +9,17 @@ import (
 	"EMC_MES/internal/logger"
 )
 
+// ShippingScreenItem структура для экрана отгрузок
+type ShippingScreenItem struct {
+	CustomerCode string `json:"customerCode"`
+	MaterialCode string `json:"materialCode"`
+	BoxAmount    int    `json:"boxAmount"`
+	Destination  string `json:"destination"`
+	Today        int    `json:"today"`
+	Tomorrow     int    `json:"tomorrow"`
+	DayAfter     int    `json:"dayAfter"`
+}
+
 // BoxStatRecord запись о коробке для статистики
 type BoxStatRecord struct {
 	Date         string
@@ -224,4 +235,68 @@ func GetPartNokByID(id string) (*PartNokRecord, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// GetShippingScreenData возвращает данные для экрана отгрузок
+func GetShippingScreenData() ([]ShippingScreenItem, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	query := `
+        SELECT 
+            RTRIM(m.CustomerCode) as CustomerCode,
+            RTRIM(m.MaterialCode) as MaterialCode,
+            m.QuantityInHU as BoxAmount,
+            RTRIM(m.Destination) as Destination,
+            ISNULL(SUM(CASE 
+                WHEN s.Date = CAST(GETDATE() AS DATE) AND s.Done = 0 
+                THEN sd.Boxes*m.QuantityInHU
+                ELSE 0 
+            END), 0) as Today,
+            ISNULL(SUM(CASE 
+                WHEN s.Date = CAST(DATEADD(day, 1, GETDATE()) AS DATE) AND s.Done = 0 
+                THEN sd.Boxes*m.QuantityInHU
+                ELSE 0 
+            END), 0) as Tomorrow,
+            ISNULL(SUM(CASE 
+                WHEN s.Date = CAST(DATEADD(day, 2, GETDATE()) AS DATE) AND s.Done = 0 
+                THEN sd.Boxes*m.QuantityInHU
+                ELSE 0 
+            END), 0) as DayAfter
+        FROM materials m
+        LEFT JOIN ShipmentDetails sd ON m.MaterialID = sd.MaterialID
+        LEFT JOIN Shipments s ON sd.ShipmentID = s.ShipmentID
+        WHERE s.Done = 0 OR s.Done IS NULL
+        GROUP BY m.CustomerCode, m.MaterialCode, m.QuantityInHU, m.Destination
+        HAVING 
+            SUM(CASE WHEN s.Date = CAST(GETDATE() AS DATE) AND s.Done = 0 THEN sd.Boxes - sd.ScannedBoxes ELSE 0 END) > 0
+            OR SUM(CASE WHEN s.Date = CAST(DATEADD(day, 1, GETDATE()) AS DATE) AND s.Done = 0 THEN sd.Boxes - sd.ScannedBoxes ELSE 0 END) > 0
+            OR SUM(CASE WHEN s.Date = CAST(DATEADD(day, 2, GETDATE()) AS DATE) AND s.Done = 0 THEN sd.Boxes - sd.ScannedBoxes ELSE 0 END) > 0
+        ORDER BY m.MaterialCode`
+
+	rows, err := DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса данных отгрузок: %w", err)
+	}
+	defer rows.Close()
+
+	var items []ShippingScreenItem
+	for rows.Next() {
+		var item ShippingScreenItem
+		err := rows.Scan(
+			&item.CustomerCode,
+			&item.MaterialCode,
+			&item.BoxAmount,
+			&item.Destination,
+			&item.Today,
+			&item.Tomorrow,
+			&item.DayAfter,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка сканирования: %w", err)
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
 }
