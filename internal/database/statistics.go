@@ -21,6 +21,7 @@ type BoxStatRecord struct {
 
 // BadPartRecord запись о бракованной детали для статистики
 type BadPartRecord struct {
+	ID       int
 	DateTime string
 	Line     string
 	Material string
@@ -28,6 +29,17 @@ type BadPartRecord struct {
 	Mkm      string
 	Video    string
 	Details  string
+}
+
+// PartNokRecord структура для записи о бракованной детали
+type PartNokRecord struct {
+	ID       int       `json:"id"`
+	Datetime time.Time `json:"datetime"`
+	Line     string    `json:"line"`
+	Material string    `json:"material"`
+	Counter  int       `json:"counter"`
+	Mkm      []byte    `json:"mkm"`
+	Video    string    `json:"video"`
 }
 
 // GetBoxesByPeriod возвращает коробки за период с фильтром по линии
@@ -97,6 +109,7 @@ func GetBadPartsByPeriod(fromDate, toDate time.Time, lineName string) ([]BadPart
 	// Используем ? вместо именованных параметров
 	query := `
 		SELECT 
+			pn.id as Id,
 			FORMAT(pn.datetime, 'yyyy-MM-dd HH:mm:ss') as DateTime,
 			RTRIM(pn.line) as Line,
 			RTRIM(pn.name) as Material,
@@ -129,7 +142,7 @@ func GetBadPartsByPeriod(fromDate, toDate time.Time, lineName string) ([]BadPart
 		var mkmBytes []byte
 		var video sql.NullString
 
-		err := rows.Scan(&r.DateTime, &r.Line, &r.Material, &r.Counter, &mkmBytes, &video)
+		err := rows.Scan(&r.ID, &r.DateTime, &r.Line, &r.Material, &r.Counter, &mkmBytes, &video)
 		if err != nil {
 			logger.Error("Ошибка сканирования брака: %v", err)
 			continue
@@ -181,4 +194,34 @@ func GetAllLinesForFilter() ([]string, error) {
 	}
 
 	return lines, nil
+}
+
+func GetPartNokByID(id string) (*PartNokRecord, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `
+        SELECT 
+            id,
+            datetime,
+            line,
+            name,
+            counter,
+            mkm,
+            video
+        FROM partNok
+        WHERE id = ?
+    `
+	var p PartNokRecord
+	err := DB.QueryRowContext(ctx, query, id).Scan(
+		&p.ID, &p.Datetime, &p.Line, &p.Material,
+		&p.Counter, &p.Mkm, &p.Video,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }

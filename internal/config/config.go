@@ -8,6 +8,12 @@ import (
 	"sync"
 )
 
+type TrassirConfig struct {
+	Address  string `json:"address"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 // ShiftConfig настройки смены
 type ShiftConfig struct {
 	Name  string `json:"name"`
@@ -32,6 +38,9 @@ type Config struct {
 
 	// Настройки смен
 	Shifts map[string]ShiftConfig `json:"shifts"`
+
+	// Настройка сервера видеонаблюдения
+	Trassir TrassirConfig `json:"trassir"`
 }
 
 var (

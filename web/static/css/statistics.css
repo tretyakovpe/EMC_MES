@@ -279,3 +279,26 @@
 .btn-video:hover {
     background: #0056b3;
 }
+.btn-video,
+.btn-download-video {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.btn-download-video {
+    background: #28a745;
+}
+
+.btn-video:hover {
+    background: #0056b3;
+}
+
+.btn-download-video:hover {
+    background: #1e7e34;
+}

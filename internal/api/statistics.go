@@ -1,13 +1,14 @@
 package api
 
 import (
-	"EMC_MES/internal/database"
-	"EMC_MES/internal/logger"
 	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"EMC_MES/internal/database"
+	"EMC_MES/internal/logger"
 )
 
 // BoxStatResponse структура ответа для коробок
@@ -22,6 +23,7 @@ type BoxStatResponse struct {
 
 // BadPartStatResponse структура ответа для брака
 type BadPartStatResponse struct {
+	ID       int    `json:"id"`
 	DateTime string `json:"dateTime"`
 	Line     string `json:"line"`
 	Material string `json:"material"`
@@ -139,6 +141,7 @@ func handleGetBadPartsStats(w http.ResponseWriter, r *http.Request) {
 	response := make([]BadPartStatResponse, 0, len(records))
 	for _, r := range records {
 		response = append(response, BadPartStatResponse{
+			ID:       r.ID,
 			DateTime: r.DateTime,
 			Line:     r.Line,
 			Material: r.Material,

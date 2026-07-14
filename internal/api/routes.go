@@ -1,12 +1,13 @@
 package api
 
 import (
-	"EMC_MES/internal/events"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"EMC_MES/internal/events"
 )
 
 var globalHub *events.Hub
@@ -117,6 +118,8 @@ func SetupRoutes() *http.ServeMux {
 
 		http.NotFound(w, r)
 	})
+	// Видео стрим
+	mux.HandleFunc("/api/video/stream", handleVideoStream)
 
 	// Статистика
 	mux.HandleFunc("/api/stats", handleStats)

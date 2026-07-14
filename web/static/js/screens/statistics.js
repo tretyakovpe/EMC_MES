@@ -59,27 +59,38 @@ class StatisticsScreen {
                         <button id="print-label-btn" class="action-btn">🖨 Печать бирки</button>
                     </div>
                 </div>
-            </div>
-            <div class="modal fade" id="videoModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">🎬 Видео</h5>
-                            <button type="button" class="close-modal" data-bs-dismiss="modal">&times;</button>
+            </div>`;
+
+        // Модальное окно для видео
+        this.container.innerHTML += `
+    <div class="modal fade" id="videoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🎬 Видео</h5>
+                    <button type="button" class="close-modal" data-bs-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" style="position: relative;">
+                    <div id="videoLoading" style="display: none; text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 40px; margin-bottom: 16px;">⏳</div>
+                        <p style="font-size: 16px;">Загрузка видео...</p>
+                        <div style="width: 100%; max-width: 300px; height: 4px; background: #e0e0e0; margin: 12px auto; border-radius: 2px; overflow: hidden;">
+                            <div id="videoProgressBar" style="width: 0%; height: 100%; background: #cc0000; transition: width 0.3s;"></div>
                         </div>
-                        <div class="modal-body">
-                            <video id="videoPlayer" width="100%" controls autoplay>
-                                <source id="videoSource" src="" type="video/mp4">
-                                Ваш браузер не поддерживает видео.
-                            </video>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn-close-modal" data-bs-dismiss="modal">Закрыть</button>
-                        </div>
+                        <span id="videoProgressText" style="font-size: 12px; color: #999;">0%</span>
                     </div>
+                    <video id="videoPlayer" width="100%" controls autoplay style="display: none;">
+                        <source id="videoSource" src="" type="video/mp4">
+                        Ваш браузер не поддерживает видео.
+                    </video>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-close-modal" data-bs-dismiss="modal">Закрыть</button>
                 </div>
             </div>
-        `;
+        </div>
+    </div>
+`;
         // Модальное окно для бирки
         this.container.innerHTML += `
     <div class="modal fade" id="labelModal" tabindex="-1" aria-hidden="true">
@@ -198,11 +209,13 @@ class StatisticsScreen {
                     <td>${item.counter}</td>
                     <td>${this.escapeHtml(item.mkm)}</td>
                     <td>
-                        ${item.video && item.video !== '—' && item.video !== '0' ?
-                    `<button class="btn-video" data-video="${this.escapeHtml(item.video)}">📹 Видео</button>` :
+                        ${item.id ?
+                    `<div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                            <button class="btn-video" data-part-id="${item.id}">📹 Видео</button>
+                            <button class="btn-download-video" data-part-id="${item.id}">⬇ Скачать</button>
+                        </div>` :
                     '—'
-                }
-                    </td>
+                }                    </td>
                 </tr>
             `).join('');
         }
@@ -318,11 +331,21 @@ class StatisticsScreen {
         // Обработка кнопок видео
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('btn-video')) {
-                const video = e.target.dataset.video;
+                const video = e.target.dataset.partId;
                 this.openVideoModal(video);
             }
         });
-
+        // Обработка кнопок "Скачать видео"
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-download-video')) {
+                const partId = e.target.dataset.partId;
+                if (partId) {
+                    this.downloadVideo(partId);
+                } else {
+                    console.warn('btn-download-video: отсутствует data-part-id');
+                }
+            }
+        });
         // Закрытие модального окна
         const closeModalBtn = document.querySelector('.close-modal');
         if (closeModalBtn) {
@@ -346,13 +369,28 @@ class StatisticsScreen {
         });
     }
 
-    openVideoModal(videoFilename) {
+    openVideoModal(partNokId) {
         const modal = document.getElementById('videoModal');
         const videoSource = document.getElementById('videoSource');
         const videoPlayer = document.getElementById('videoPlayer');
         if (!modal || !videoSource) return;
-        videoSource.src = `/api/video?file=${encodeURIComponent(videoFilename)}`;
+
+        // Добавляем индикатор загрузки
+        document.getElementById('videoLoading').style.display = 'block';
+        videoPlayer.style.display = 'none';
+
+        videoSource.src = `/api/video/stream?id=${encodeURIComponent(partNokId)}`;
         videoPlayer.load();
+
+        videoPlayer.onloadeddata = () => {
+            document.getElementById('videoLoading').style.display = 'none';
+            videoPlayer.style.display = 'block';
+        };
+
+        videoPlayer.onerror = () => {
+            document.getElementById('videoLoading').innerHTML = '❌ Видео недоступно (возможно, архив удалён)';
+        };
+
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
     }
@@ -369,50 +407,66 @@ class StatisticsScreen {
         }
         document.body.style.overflow = '';
     }
-openLabelModal(labelNumber) {
-    const modal = document.getElementById('labelModal');
-    const embed = document.getElementById('labelEmbed');
-    const loading = document.getElementById('labelLoading');
-    const preview = document.getElementById('labelPreview');
-    
-    if (!modal) return;
-    
-    loading.style.display = 'block';
-    preview.style.display = 'none';
-    embed.src = '';
-    
-    // Загружаем PDF через embed
-    embed.src = `/api/boxes/view/${encodeURIComponent(labelNumber)}`;
-    embed.type = 'application/pdf';
-    
-    // Обработчик загрузки
-    embed.onload = () => {
-        loading.style.display = 'none';
-        preview.style.display = 'block';
-    };
-    
-    // Если embed не может загрузить PDF, показываем ошибку через 5 секунд
-    setTimeout(() => {
-        if (loading.style.display !== 'none') {
-            loading.innerHTML = '<p>❌ Не удалось загрузить бирку</p>';
-        }
-    }, 10000);
-    
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-}
+
+    downloadVideo(partNokId) {
+        const url = `/api/video/stream?id=${encodeURIComponent(partNokId)}`;
+
+        // Получаем имя файла из ответа или генерируем
+        const filename = `video_${partNokId}_${new Date().toISOString().slice(0, 10)}.mp4`;
+
+        // Создаём ссылку для скачивания
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    openLabelModal(labelNumber) {
+        const modal = document.getElementById('labelModal');
+        const embed = document.getElementById('labelEmbed');
+        const loading = document.getElementById('labelLoading');
+        const preview = document.getElementById('labelPreview');
+
+        if (!modal) return;
+
+        loading.style.display = 'block';
+        preview.style.display = 'none';
+        embed.src = '';
+
+        // Загружаем PDF через embed
+        embed.src = `/api/boxes/view/${encodeURIComponent(labelNumber)}`;
+        embed.type = 'application/pdf';
+
+        // Обработчик загрузки
+        embed.onload = () => {
+            loading.style.display = 'none';
+            preview.style.display = 'block';
+        };
+
+        // Если embed не может загрузить PDF, показываем ошибку через 5 секунд
+        setTimeout(() => {
+            if (loading.style.display !== 'none') {
+                loading.innerHTML = '<p>❌ Не удалось загрузить бирку</p>';
+            }
+        }, 10000);
+
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
 
     closeLabelModal() {
-    const modal = document.getElementById('labelModal');
-    const embed = document.getElementById('labelEmbed');
-    if (modal) {
-        modal.classList.remove('show');
+        const modal = document.getElementById('labelModal');
+        const embed = document.getElementById('labelEmbed');
+        if (modal) {
+            modal.classList.remove('show');
+        }
+        if (embed) {
+            embed.src = '';
+        }
+        document.body.style.overflow = '';
     }
-    if (embed) {
-        embed.src = '';
-    }
-    document.body.style.overflow = '';
-}
 
     escapeHtml(str) {
         if (!str) return '';
