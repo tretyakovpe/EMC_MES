@@ -27,17 +27,17 @@ var (
 
 // program структура для реализации service.Handler
 type program struct {
-	server *http.Server
-	ctx    context.Context
-	cancel context.CancelFunc
+	configPath string
+	server     *http.Server
 }
 
-// Start запускает программу
-func (p *program) Start(s service.Service) error {
-	logger.Info("Запуск EMC MES v%s", version)
+// initialize инициализирует конфигурацию, БД и создаёт HTTP сервер
+// Используется обоими режимами (Service и Interactive)
+func (p *program) initialize() error {
+	logger.Info("Инициализация EMC MES v%s", version)
 
 	// Загружаем конфигурацию
-	if err := config.LoadConfig(""); err != nil {
+	if err := config.LoadConfig(p.configPath); err != nil {
 		logger.Error("Ошибка загрузки конфигурации: %v", err)
 		return err
 	}
@@ -66,9 +66,21 @@ func (p *program) Start(s service.Service) error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Запускаем сервер
+	return nil
+}
+
+// Start запускает программу как Windows Service
+// Вызывается service.Run() когда приложение работает как служба
+func (p *program) Start(s service.Service) error {
+	logger.Info("Запуск EMC MES в режиме Service")
+
+	if err := p.initialize(); err != nil {
+		return err
+	}
+
+	// Запускаем сервер в горутине
 	go func() {
-		logger.Info("HTTP сервер запущен на http://0.0.0.0%s", addr)
+		logger.Info("HTTP сервер запущен на http://0.0.0.0%s", p.server.Addr)
 		if err := p.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Ошибка запуска сервера: %v", err)
 		}
@@ -77,7 +89,7 @@ func (p *program) Start(s service.Service) error {
 	return nil
 }
 
-// Stop останавливает программу
+// Stop останавливает программу (вызывается Windows Service Manager)
 func (p *program) Stop(s service.Service) error {
 	logger.Info("Получен сигнал завершения, останавливаю сервер...")
 
@@ -95,6 +107,42 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
+// runInteractive запускает приложение в интерактивном режиме (для отладки)
+// Ждёт сигнала OS для корректной остановки
+func (p *program) runInteractive() {
+	logger.Info("Запуск EMC MES в интерактивном режиме")
+
+	if err := p.initialize(); err != nil {
+		logger.Error("Ошибка инициализации: %v", err)
+		os.Exit(1)
+	}
+	defer database.Close()
+
+	// Запускаем сервер в горутине
+	go func() {
+		logger.Info("HTTP сервер запущен на http://0.0.0.0%s", p.server.Addr)
+		if err := p.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Ошибка запуска сервера: %v", err)
+		}
+	}()
+
+	// Ожидаем сигнал завершения
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Получен сигнал завершения, останавливаю сервер...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := p.server.Shutdown(ctx); err != nil {
+		logger.Error("Ошибка при остановке сервера: %v", err)
+	}
+
+	logger.Info("Сервер остановлен. До свидания!")
+}
+
 func main() {
 	// Парсим флаги командной строки
 	var showVersion bool
@@ -107,12 +155,14 @@ func main() {
 	if err == nil {
 		os.Chdir(filepath.Dir(exePath))
 	}
+
 	flag.BoolVar(&showVersion, "version", false, "Показать версию")
 	flag.StringVar(&configPath, "config", "", "Путь к config.json (по умолчанию ./config/config.json)")
 	flag.BoolVar(&installService, "install", false, "Установить как Windows службу")
 	flag.BoolVar(&uninstallService, "uninstall", false, "Удалить Windows службу")
 	flag.Parse()
 
+	// Показываем версию и выходим
 	if showVersion {
 		fmt.Printf("EMC MES v%s (built %s)\n", version, buildTime)
 		os.Exit(0)
@@ -125,7 +175,10 @@ func main() {
 	}
 	defer logger.Close()
 
-	// Настройки для службы
+	// Создаём программу с переданным путём конфи��а
+	prg := &program{configPath: configPath}
+
+	// Настройки для Windows Service
 	svcConfig := &service.Config{
 		Name:        "EMC_MES",
 		DisplayName: "EMC MES",
@@ -133,16 +186,15 @@ func main() {
 		Arguments:   []string{"-config", configPath},
 	}
 
-	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+	svc, err := service.New(prg, svcConfig)
 	if err != nil {
 		logger.Error("Ошибка создания службы: %v", err)
 		os.Exit(1)
 	}
 
-	// Обработка установки/удаления службы
+	// Обработка установки службы
 	if installService {
-		err = s.Install()
+		err = svc.Install()
 		if err != nil {
 			logger.Error("Ошибка установки службы: %v", err)
 			os.Exit(1)
@@ -152,8 +204,9 @@ func main() {
 		return
 	}
 
+	// Обработка удаления службы
 	if uninstallService {
-		err = s.Uninstall()
+		err = svc.Uninstall()
 		if err != nil {
 			logger.Error("Ошибка удаления службы: %v", err)
 			os.Exit(1)
@@ -162,71 +215,18 @@ func main() {
 		return
 	}
 
-	// Если запущено не как служба, работаем в консольном режиме
-	if !service.Interactive() {
-		// Запуск как службы
-		err = s.Run()
+	// ✅ ЕДИНЫЙ ПУТЬ ВЫПОЛНЕНИЯ ДЛЯ ОБОИХ РЕЖИМОВ
+
+	// Проверяем, запущено ли приложение как служба или в консоли
+	if service.Interactive() {
+		// Интерактивный режим (двойной клик, запуск из IDE, консоль)
+		prg.runInteractive()
+	} else {
+		// Режим Windows Service (управляется Services.msc)
+		err = svc.Run()
 		if err != nil {
 			logger.Error("Ошибка запуска службы: %v", err)
 			os.Exit(1)
 		}
-	} else {
-		// Запуск как обычного приложения (для отладки)
-		logger.Info("Запуск в интерактивном режиме")
-
-		// Загружаем конфигурацию
-		if err := config.LoadConfig(configPath); err != nil {
-			logger.Error("Ошибка загрузки конфигурации: %v", err)
-			os.Exit(1)
-		}
-
-		cfg := config.GetConfig()
-		logger.Info("Конфигурация загружена. Режим отладки: %v", cfg.Debug)
-
-		// Подключаемся к базе данных
-		if err := database.Init(); err != nil {
-			logger.Error("Ошибка подключения к БД: %v", err)
-			os.Exit(1)
-		}
-		defer database.Close()
-
-		logger.Info("Подключение к БД установлено: %s", cfg.DbName)
-
-		// Настраиваем и запускаем HTTP сервер
-		addr := fmt.Sprintf(":%d", cfg.ServerPort)
-		mux := api.SetupRoutes()
-		router := api.LoggingMiddleware(mux)
-
-		server := &http.Server{
-			Addr:         addr,
-			Handler:      router,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
-			IdleTimeout:  60 * time.Second,
-		}
-
-		// Запускаем сервер в горутине
-		go func() {
-			logger.Info("HTTP сервер запущен на http://0.0.0.0%s", addr)
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Fatal("Ошибка запуска сервера: %v", err)
-			}
-		}()
-
-		// Ожидаем сигнал завершения
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-
-		logger.Info("Получен сигнал завершения, останавливаю сервер...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := server.Shutdown(ctx); err != nil {
-			logger.Error("Ошибка при остановке сервера: %v", err)
-		}
-
-		logger.Info("Сервер остановлен. До свидания!")
 	}
 }
