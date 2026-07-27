@@ -22,28 +22,27 @@ const ShipmentsModule = {
                     </div>
                     
                     <!-- Правая панель: создание отгрузки -->
-                    <div class="shipment-editor-panel" id="shipment-editor" style="display: none;">
-                        <div class="panel-header">
-                            <h3>📦 Сборка отгрузки</h3>
-                            <button id="close-editor-btn" class="btn-close">✕</button>
-                        </div>
-                        <div class="shipment-number-input">
-                            <label>Номер накладной:</label>
-                            <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
-                        </div>
-                        <div class="shipment-number-input">
-                            <label>Дата отгрузки:</label>
-                            <input type="date" id="shipment-date" class="form-input">
-                        </div>                        
-                        <div class="shipment-items-list" id="shipment-items-list">
-                            <div class="empty-items">Добавьте материалы</div>
-                        </div>
-                        <div class="shipment-actions">
-                            <button id="add-material-btn" class="btn-secondary">➕ Добавить материал</button>
-                            <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
-                        </div>
-                    </div>
-                    
+<div class="shipment-editor-panel" id="shipment-editor" style="display: none;">
+    <div class="panel-header">
+        <h3>📦 Сборка отгрузки</h3>
+        <button id="close-editor-btn" class="btn-close">✕</button>
+    </div>
+    <div class="shipment-number-input">
+        <label>Номер накладной:</label>
+        <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
+    </div>
+    <div class="shipment-number-input">
+        <label>Дата отгрузки:</label>
+        <input type="date" id="shipment-date" class="form-input">
+    </div>
+    <div class="shipment-items-list" id="shipment-items-list">
+        <div class="empty-items">Добавьте материалы</div>
+    </div>
+    <div class="shipment-actions">
+        <button id="add-material-btn" class="btn-secondary">➕ Добавить материал</button>
+        <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
+    </div>
+</div>                    
                     <!-- Панель выбора материалов -->
                     <div id="materials-picker" class="materials-picker" style="display: none;">
                         <div class="picker-content">
@@ -87,21 +86,26 @@ const ShipmentsModule = {
         }
 
         container.innerHTML = this.shipments.map(s => `
-            <div class="shipment-card ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}" 
-                 data-id="${s.shipmentId}"
-                 onclick="ShipmentsModule.viewShipment(${s.shipmentId})">
-                <div class="shipment-header">
-                    <span class="shipment-number">№${s.number || s.shipmentId}</span>
-                    <span class="shipment-status">${this.getStatusText(s)}</span>
-                </div>
-                <div class="shipment-date">${this.formatDate(s.date)}</div>
-                <div class="shipment-progress">
-                    <div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div>
-                    <span>${s.progress}%</span>
-                </div>
-                ${!s.done ? `<button class="delete-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.deleteShipment(${s.shipmentId})">🗑</button>` : ''}
+        <div class="shipment-card ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}" 
+             data-id="${s.shipmentId}"
+             onclick="ShipmentsModule.viewShipment(${s.shipmentId})">
+            <div class="shipment-header">
+                <span class="shipment-number">№${s.number || s.shipmentId}</span>
+                <span class="shipment-status">${this.getStatusText(s)}</span>
             </div>
-        `).join('');
+            <div class="shipment-date">${this.formatDate(s.date)}</div>
+            <div class="shipment-progress">
+                <div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div>
+                <span>${s.progress}%</span>
+            </div>
+                    <button class="edit-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.editShipment(${s.shipmentId})">✏️</button>                    
+            <div class="shipment-actions-row">
+                ${!s.done ? `
+                    <button class="delete-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.deleteShipment(${s.shipmentId})" title="Удалить">🗑</button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
     },
 
     getStatusText(shipment) {
@@ -315,20 +319,40 @@ const ShipmentsModule = {
         }));
 
         try {
-            const result = await API.createShipment({
-                number: parseInt(shipmentNumber),
-                date: shipmentDate,  // ← используем дату из datepicker
-                details: details
-            });
+            let result;
+            if (this.editingShipmentId) {
+                // Обновляем существующую отгрузку
+                result = await API.updateShipment(this.editingShipmentId, {
+                    number: parseInt(shipmentNumber),
+                    date: shipmentDate,
+                    details: details
+                });
+                alert(`Отгрузка №${shipmentNumber} обновлена`);
+            } else {
+                // Создаём новую отгрузку
+                result = await API.createShipment({
+                    number: parseInt(shipmentNumber),
+                    date: shipmentDate,
+                    details: details
+                });
+                alert(`Отгрузка №${shipmentNumber} создана`);
+            }
 
-            alert(`Отгрузка №${shipmentNumber} создана`);
             this.shipmentItems = [];
+            this.editingShipmentId = null;
             this.renderShipmentItems();
             await this.loadShipments();
             this.closeEditor();
+
+            // Восстанавливаем текст кнопки
+            const saveBtn = document.getElementById('save-shipment-btn');
+            if (saveBtn) {
+                saveBtn.textContent = '💾 Сохранить отгрузку';
+            }
+
         } catch (error) {
-            console.error('Ошибка создания отгрузки:', error);
-            alert('Ошибка создания отгрузки: ' + error.message);
+            console.error('Ошибка сохранения отгрузки:', error);
+            alert('Ошибка сохранения отгрузки: ' + error.message);
         }
     },
 
@@ -347,7 +371,79 @@ const ShipmentsModule = {
             alert('Ошибка загрузки деталей отгрузки');
         }
     },
+    async editShipment(shipmentId) {
+        try {
+            // 1. Получаем данные отгрузки
+            const shipment = await API.getShipmentById(shipmentId);
+            if (!shipment) {
+                alert('Отгрузка не найдена');
+                return;
+            }
 
+            // 2. Проверяем, что отгрузка не завершена
+            if (shipment.done) {
+                alert('Нельзя редактировать завершённую отгрузку');
+                return;
+            }
+
+            // 3. Показываем редактор
+            const editor = document.getElementById('shipment-editor');
+            if (!editor) {
+                console.error('Editor not found');
+                return;
+            }
+
+            // 4. Заполняем поля
+            const numberInput = document.getElementById('shipment-number');
+            const dateInput = document.getElementById('shipment-date');
+
+            if (numberInput) {
+                numberInput.value = shipment.number || '';
+            }
+            if (dateInput) {
+                dateInput.value = shipment.date || new Date().toISOString().slice(0, 10);
+            }
+
+            // 5. Преобразуем детали в формат shipmentItems
+            this.shipmentItems = shipment.details.map(d => ({
+                materialId: d.materialId,
+                materialCode: d.materialCode,
+                boxes: d.boxes,
+                scannedBoxes: d.scannedBoxes || 0
+            }));
+
+            // 6. Сохраняем ID отгрузки для обновления
+            this.editingShipmentId = shipmentId;
+
+            // 7. Отображаем список материалов
+            this.renderShipmentItems();
+            editor.style.display = 'flex';
+
+            // 8. Меняем текст кнопки "Сохранить"
+            const saveBtn = document.getElementById('save-shipment-btn');
+            if (saveBtn) {
+                saveBtn.textContent = '💾 Обновить отгрузку';
+            }
+
+            // 9. Показываем кнопку "Отмена", если её нет
+            let cancelBtn = document.getElementById('cancel-edit-btn');
+            if (!cancelBtn) {
+                const actionsDiv = document.querySelector('.shipment-actions');
+                if (actionsDiv) {
+                    const newCancelBtn = document.createElement('button');
+                    newCancelBtn.id = 'cancel-edit-btn';
+                    newCancelBtn.className = 'btn-secondary';
+                    newCancelBtn.textContent = '✕ Отменить';
+                    newCancelBtn.onclick = () => this.closeEditor();
+                    actionsDiv.prepend(newCancelBtn);
+                }
+            }
+
+        } catch (error) {
+            console.error('Ошибка загрузки отгрузки для редактирования:', error);
+            alert('Не удалось загрузить отгрузку для редактирования');
+        }
+    },
     async deleteShipment(shipmentId) {
         if (!confirm('Удалить отгрузку?')) return;
         try {
@@ -361,13 +457,34 @@ const ShipmentsModule = {
 
     closeEditor() {
         this.shipmentItems = [];
+        this.editingShipmentId = null;
         this.renderShipmentItems();
+
         const editor = document.getElementById('shipment-editor');
         const numberInput = document.getElementById('shipment-number');
         const dateInput = document.getElementById('shipment-date');
-        if (editor) editor.style.display = 'none';
-        if (numberInput) numberInput.value = '';
-        if (dateInput) dateInput.value = '';
+
+        if (editor) {
+            editor.style.display = 'none';
+        }
+        if (numberInput) {
+            numberInput.value = '';
+        }
+        if (dateInput) {
+            dateInput.value = '';
+        }
+
+        // Восстанавливаем текст кнопки "Сохранить"
+        const saveBtn = document.getElementById('save-shipment-btn');
+        if (saveBtn) {
+            saveBtn.textContent = '💾 Сохранить отгрузку';
+        }
+
+        // Удаляем кнопку "Отмена"
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        if (cancelBtn) {
+            cancelBtn.remove();
+        }
     },
 
     closePicker() {

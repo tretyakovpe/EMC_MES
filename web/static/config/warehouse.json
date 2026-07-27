@@ -5,22 +5,28 @@
     },
     "layout": {
         "rows": 2,
-        "aisleWidth": 10,
-        "stackWidth": 150,
+        "aisleWidth": 40,
+        "stackWidth": 100,
         "stackHeight": 200,
         "maxBoxes": 40
     },
     "stacks": [
-        {"materialCode": "LD1100-101", "position": {"row": 0, "col": 1}},
-        {"materialCode": "LL1200-101", "position": {"row": 0, "col": 2}},
-        {"materialCode": "", "position": {"row": 0, "col": 5}},
-        {"materialCode": "LO2300-100", "position": {"row": 0, "col": 3}},
-        {"materialCode": "E68986-104", "position": {"row": 0, "col": 4}},
-        {"materialCode": "LF1100-101", "position": {"row": 1, "col": 0}},
-        {"materialCode": "LF1200-101", "position": {"row": 1, "col": 1}},
-        {"materialCode": "LF2300-100", "position": {"row": 1, "col": 2}},
-        {"materialCode": "LF2400-101", "position": {"row": 1, "col": 3}},
-        {"materialCode": "", "position": {"row": 1, "col": 5}},
-        {"materialCode": "LO2200-100", "position": {"row": 1, "col": 4}}
+        {"materialCode": "LD1100-101", "position": {"row": 0, "col": 0}},
+        {"materialCode": "LF1300-100", "position": {"row": 0, "col": 8}},
+        {"materialCode": "LF1300-100", "position": {"row": 0, "col": 9}},
+        {"materialCode": "LL1100-101", "position": {"row": 0, "col": 11}},
+        {"materialCode": "LF2300-101", "position": {"row": 0, "col": 12}},
+        {"materialCode": "LD2300-101", "position": {"row": 0, "col": 14}},
+        {"materialCode": "LO2300-100", "position": {"row": 0, "col": 15}},
+        {"materialCode": "LO2100-100", "position": {"row": 0, "col": 16}},
+        {"materialCode": "LH1100-100", "position": {"row": 0, "col": 17}},
+        {"materialCode": "LD1200-101", "position": {"row": 1, "col": 0}},
+        {"materialCode": "LF1400-100", "position": {"row": 1, "col": 8}},
+        {"materialCode": "LL1200-101", "position": {"row": 1, "col": 10}},
+        {"materialCode": "LF2400-101", "position": {"row": 1, "col": 11}},
+        {"materialCode": "LD2400-101", "position": {"row": 1, "col": 12}},
+        {"materialCode": "LO2400-100", "position": {"row": 1, "col": 15}},
+        {"materialCode": "LO2200-100", "position": {"row": 1, "col": 16}},
+        {"materialCode": "LH1200-100", "position": {"row": 1, "col": 17}}
     ]
 }

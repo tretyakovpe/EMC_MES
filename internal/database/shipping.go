@@ -35,6 +35,13 @@ type ShipmentWithDetails struct {
 	Details []ShipmentDetail
 }
 
+// ShipmentDetailUpdate структура для обновления деталей отгрузки
+type ShipmentDetailUpdate struct {
+	MaterialID int `json:"materialId"`
+	Boxes      int `json:"boxes"`
+	Amount     int `json:"amount"`
+}
+
 // GetShipments возвращает список всех отгрузок
 func GetShipments(completed, done *bool, fromDate, toDate *time.Time) ([]Shipment, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -492,4 +499,68 @@ func GetShipmentDetailsByMaterial(shipmentID, materialID int) (*ShipmentDetail, 
 	}
 
 	return &d, nil
+}
+
+// UpdateShipment обновляет заголовок отгрузки
+func UpdateShipment(shipmentID int, number *int, date time.Time) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var numberParam interface{} = nil
+	if number != nil {
+		numberParam = *number
+	}
+
+	query := `
+        UPDATE Shipments 
+        SET Number = ?, Date = ?
+        WHERE ShipmentID = ? AND Done = 0
+    `
+
+	result, err := DB.ExecContext(ctx, query, numberParam, date, shipmentID)
+	if err != nil {
+		return fmt.Errorf("ошибка обновления отгрузки: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("отгрузка не найдена или уже завершена")
+	}
+
+	return nil
+}
+
+// UpdateShipmentDetails обновляет детали отгрузки
+func UpdateShipmentDetails(shipmentID int, details []ShipmentDetailUpdate) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tx, err := DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("ошибка начала транзакции: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Удаляем старые детали
+	_, err = tx.ExecContext(ctx, "DELETE FROM ShipmentDetails WHERE ShipmentID = ?", shipmentID)
+	if err != nil {
+		return fmt.Errorf("ошибка удаления старых деталей: %w", err)
+	}
+
+	// Добавляем новые детали
+	for _, d := range details {
+		_, err = tx.ExecContext(ctx, `
+            INSERT INTO ShipmentDetails (ShipmentID, MaterialID, Boxes, Amount, ScannedBoxes)
+            VALUES (?, ?, ?, ?, 0)
+        `, shipmentID, d.MaterialID, d.Boxes, d.Amount)
+		if err != nil {
+			return fmt.Errorf("ошибка добавления детали: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("ошибка коммита транзакции: %w", err)
+	}
+
+	return nil
 }

@@ -126,7 +126,9 @@ const API = {
     createShipment(shipmentData) {
         return this.post('shipments', shipmentData);
     },
-
+    updateShipment(shipmentId, shipmentData) {
+        return this.put(`shipments/${shipmentId}`, shipmentData);
+    },
     scanBox(shipmentId, huId, materialId) {
         return this.post(`shipments/${shipmentId}/scan`, { huId, materialId });
     },
