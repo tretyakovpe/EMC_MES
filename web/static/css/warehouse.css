@@ -13,13 +13,11 @@
 }
 
 .warehouse-aisle {
-    background: repeating-linear-gradient(
-        45deg,
-        #a0a0a0,
-        #a0a0a0 20px,
-        #b0b0b0 20px,
-        #b0b0b0 40px
-    );
+    background: repeating-linear-gradient(45deg,
+            #a0a0a0,
+            #a0a0a0 20px,
+            #b0b0b0 20px,
+            #b0b0b0 40px);
     margin: 10px 0;
 }
 
@@ -32,19 +30,20 @@
     align-items: center;
     cursor: pointer;
     transition: transform 0.2s;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     position: relative;
 }
 
 .stack-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .stack-card.empty {
     background: #4a4a4a;
     opacity: 0.6;
     cursor: default;
+    color: #ccc;
 }
 
 .stack-card.empty:hover {
@@ -53,7 +52,7 @@
 
 .stack-material {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 10px;
     color: #cc0000;
     margin-bottom: 8px;
     text-align: center;
@@ -82,7 +81,6 @@
 
 .stack-stats {
     font-size: 11px;
-    color: #ccc;
     text-align: center;
     margin-top: 8px;
 }
@@ -91,25 +89,79 @@
     margin: 2px 0;
 }
 
+/* Стек — состояния */
+.stack-card.full {
+    border: 2px solid #28a745 !important;
+    background: rgba(255, 170, 0, 0.1) !important;
+    color: #111;
+}
+
+.stack-card.partial {
+    border: 2px solid #28a745 !important;
+    color: #ccc;
+}
+
+.stack-card.overfilled {
+    border: 2px solid #cc0000 !important;
+    background: rgba(204, 0, 0, 0.15) !important;
+    animation: pulseRed 1.5s infinite;
+}
+
+@keyframes pulseRed {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(204, 0, 0, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 15px 5px rgba(204, 0, 0, 0.2);
+    }
+}
+
+.overfill-warning {
+    color: #cc0000;
+    font-weight: bold;
+    font-size: 10px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Переход для воды */
+.stack-water {
+    transition: height 0.5s ease, background 0.5s ease;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
     .warehouse-row {
         gap: 8px;
     }
-    
+
     .stack-card {
         width: 120px !important;
         height: 180px !important;
     }
-    
+
     .stack-tank {
         height: 70px;
     }
-    
+
     .stack-material {
         font-size: 10px;
     }
-    
+
     .stack-stats {
         font-size: 9px;
     }

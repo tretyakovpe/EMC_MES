@@ -11,7 +11,7 @@ const WarehouseModule = {
 
         // Загружаем конфиг напрямую
         try {
-            const response = await fetch('static/config/warehouse.json');
+            const response = await fetch('/static/config/warehouse.json');
             if (response.ok) {
                 this.config = await response.json();
             } else {
@@ -37,15 +37,18 @@ const WarehouseModule = {
 
         // Загружаем данные
         await this.loadData();
-
-        // Рендерим
         this.renderStacks();
+
+        // Обновление по кнопке
+        document.getElementById('refresh-warehouse')?.addEventListener('click', () => {
+            this.refreshData();
+        });
 
         // WebSocket для реального времени
         this.initWebSocket();
 
-        // Автообновление каждые 10 секунд
-        //this.updateInterval = setInterval(() => this.refreshData(), 10000);
+        // Автообновление каждые 30 секунд
+        this.updateInterval = setInterval(() => this.refreshData(), 30000);
 
         console.log('WarehouseModule initialized');
     },
@@ -54,23 +57,12 @@ const WarehouseModule = {
         return {
             layout: {
                 rows: 2,
-                aisleWidth: 10,
-                stackWidth: 150,
+                aisleWidth: 40,
+                stackWidth: 100,
                 stackHeight: 200,
                 maxBoxes: 40
             },
-            stacks: [
-                { "materialCode": "C22348-103", "position": { "row": 0, "col": 0 } },
-                { "materialCode": "LD1100-101", "position": { "row": 0, "col": 1 } },
-                { "materialCode": "LL1200-101", "position": { "row": 0, "col": 2 } },
-                { "materialCode": "LO2300-100", "position": { "row": 0, "col": 3 } },
-                { "materialCode": "E68986-104", "position": { "row": 0, "col": 4 } },
-                { "materialCode": "LF1100-101", "position": { "row": 1, "col": 0 } },
-                { "materialCode": "LF1200-101", "position": { "row": 1, "col": 1 } },
-                { "materialCode": "LF2300-100", "position": { "row": 1, "col": 2 } },
-                { "materialCode": "LF2400-101", "position": { "row": 1, "col": 3 } },
-                { "materialCode": "LO2200-100", "position": { "row": 1, "col": 4 } }
-            ]
+            stacks: []
         };
     },
 
@@ -97,13 +89,46 @@ const WarehouseModule = {
 
         const layout = this.config.layout || {};
         const rows = layout.rows || 2;
-        const aisleWidth = layout.aisleWidth || 10;
-        const stackWidth = layout.stackWidth || 150;
+        const aisleWidth = layout.aisleWidth || 40;
+        const stackWidth = layout.stackWidth || 100;
         const stackHeight = layout.stackHeight || 200;
-        const maxBoxes = layout.maxBoxes || 40;
-
-        // Группируем стеки по рядам из конфига
         const stacks = this.config.stacks || [];
+        const defaultMaxBoxes = layout.maxBoxes || 40;
+
+        // Группируем стеки по материалам
+        const stacksByMaterial = {};
+        for (const stack of stacks) {
+            const materialCode = stack.materialCode;
+            if (!stacksByMaterial[materialCode]) {
+                stacksByMaterial[materialCode] = [];
+            }
+            stacksByMaterial[materialCode].push(stack);
+        }
+
+        // Распределяем коробки по стекам
+        for (const materialCode in stacksByMaterial) {
+            const materialStacks = stacksByMaterial[materialCode];
+            const data = this.stacksData.find(s => s.materialCode === materialCode);
+            const totalBoxes = data?.boxCount || 0;
+
+            let remaining = totalBoxes;
+            for (const stack of materialStacks) {
+                const maxBoxes = stack.maxBoxes || defaultMaxBoxes;
+                const filled = Math.min(remaining, maxBoxes);
+                stack._fillCount = filled;
+                stack._maxCount = maxBoxes;
+                remaining -= filled;
+            }
+
+            // Если остались коробки, а стеков больше нет — помечаем последний стек как переполненный
+            if (remaining > 0 && materialStacks.length > 0) {
+                const lastStack = materialStacks[materialStacks.length - 1];
+                lastStack._overfilled = true;
+                lastStack._remaining = remaining;
+            }
+        }
+
+        // Размещаем стеки по рядам
         const rowsData = [[], []];
         for (const stack of stacks) {
             if (stack.position.row < rows) {
@@ -111,12 +136,7 @@ const WarehouseModule = {
             }
         }
 
-        if (this.stacksData.length === 0 && stacks.length === 0) {
-            content.innerHTML = '<div class="empty">📭 Нет данных о коробках</div>';
-            return;
-        }
-
-        let html = `<div class="warehouse-grid" style="min-width: ${(rowsData[0].length * stackWidth + 100)}px;">`;
+        let html = `<div class="warehouse-grid" style="min-width: ${(rowsData[0].length * (stackWidth + 16) + 40)}px;">`;
 
         for (let row = 0; row < rows; row++) {
             html += `<div class="warehouse-row">`;
@@ -124,25 +144,38 @@ const WarehouseModule = {
             for (let col = 0; col < rowsData[row].length; col++) {
                 const stack = rowsData[row][col];
                 const materialCode = stack?.materialCode;
-
-                // Ищем данные по materialCode
-                const data = this.stacksData.find(s => s.materialCode === materialCode);
-                const boxCount = data?.boxCount || 0;
-                const totalAmount = data?.totalAmount || 0;
-                const fillPercent = Math.min(100, (boxCount / maxBoxes) * 100);
+                const maxBoxes = stack?._maxCount || defaultMaxBoxes;
+                const fillCount = stack?._fillCount || 0;
+                const fillPercent = Math.min(100, (fillCount / maxBoxes) * 100);
                 const isEmpty = !materialCode || materialCode === '';
+                const isOverfilled = stack?._overfilled || false;
+                const remaining = stack?._remaining || 0;
+                const isFull = fillCount >= maxBoxes && !isOverfilled;
+                const isPartiallyFilled = fillCount > 0 && fillCount < maxBoxes;
+
+                // Определяем класс состояния
+                let stateClass = '';
+                if (isOverfilled) stateClass = 'overfilled';
+                else if (isFull) stateClass = 'full';
+                else if (isPartiallyFilled) stateClass = 'partial';
+                else if (isEmpty) stateClass = 'empty';
+
+                // Цвет воды
+                let waterColor = '#28a745'; // зелёный
+                if (isOverfilled) waterColor = '#cc0000'; // красный
+                else if (isFull) waterColor = '#ffaa00'; // жёлтый
 
                 html += `
-                    <div class="stack-card ${isEmpty ? 'empty' : ''}" 
-                         data-material="${materialCode || ''}"
+                    <div class="stack-card ${stateClass}" 
+                         data-material="${materialCode || '🆓'}"
                          style="width: ${stackWidth}px; height: ${stackHeight}px;">
-                        <div class="stack-material">${materialCode || 'Свободно'}</div>
+                        <div class="stack-material">${materialCode || ''}</div>
                         <div class="stack-tank">
-                            <div class="stack-water" style="height: ${fillPercent}%;"></div>
+                            <div class="stack-water" style="height: ${fillPercent}%; background: ${waterColor};"></div>
                         </div>
                         <div class="stack-stats">
-                            <div>📦 ${boxCount}/${maxBoxes}</div>
-                            <div>📊 ${totalAmount} шт.</div>
+                            <div>📦 ${fillCount}/${maxBoxes}</div>
+                            ${isOverfilled ? `<div class="overfill-warning">⚠️ +${remaining} кор.</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -163,9 +196,7 @@ const WarehouseModule = {
             card.addEventListener('click', () => {
                 const materialCode = card.dataset.material;
                 if (materialCode) {
-                    // Переход на таблицу коробок
-                    const title = `Коробки: ${materialCode}`;
-                    window.location.href = `/table-view?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}&status="Произведена"`;
+                    this.showBoxesList(materialCode);
                 }
             });
         });
@@ -178,11 +209,11 @@ const WarehouseModule = {
             const boxes = await response.json();
 
             console.log(`Коробки материала ${materialCode}:`, boxes);
-            alert(`Материал: ${materialCode}\nКоробок: ${boxes.length}\nИнформация в консоли (F12)`);
-
-            // TODO: позже добавить модальное окно с печатью
+            const title = `Коробки: ${materialCode}`;
+            window.location.href = `/table-view?view=boxes-by-material&material=${encodeURIComponent(materialCode)}&title=${encodeURIComponent(title)}`;
         } catch (error) {
             console.error('Ошибка загрузки коробок:', error);
+            alert('Ошибка загрузки коробок');
         }
     },
 
@@ -205,7 +236,20 @@ const WarehouseModule = {
         };
     },
 
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function (m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    },
+
     destroy() {
         if (this.updateInterval) clearInterval(this.updateInterval);
     }
 };
+
+// Глобальная функция для onclick
+window.WarehouseModule = WarehouseModule;
