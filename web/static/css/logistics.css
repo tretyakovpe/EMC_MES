@@ -779,3 +779,24 @@
     outline: none;
     border-color: #cc0000;
 }
+
+.shipment-actions-row {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.edit-shipment-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.5;
+    padding: 2px 4px;
+}
+
+.edit-shipment-btn:hover {
+    opacity: 1;
+}

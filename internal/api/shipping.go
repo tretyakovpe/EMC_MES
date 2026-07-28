@@ -47,6 +47,19 @@ type CreateShipmentDetailRequest struct {
 	Amount     int `json:"amount"`
 }
 
+// UpdateShipmentRequest структура запроса на обновление отгрузки
+type UpdateShipmentRequest struct {
+	Number  *int                   `json:"number"`
+	Date    string                 `json:"date"`
+	Details []UpdateShipmentDetail `json:"details"`
+}
+
+// UpdateShipmentDetail структура детали при обновлении
+type UpdateShipmentDetail struct {
+	MaterialID int `json:"materialId"`
+	Boxes      int `json:"boxes"`
+	Amount     int `json:"amount"`
+}
 type ParseClipboardResponse struct {
 	Rows     []ParsedRow `json:"rows"`
 	Errors   []string    `json:"errors,omitempty"`
@@ -250,6 +263,71 @@ func handleCompleteShipment(w http.ResponseWriter, r *http.Request, shipmentID i
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
 		"message": "Shipment completed",
+	})
+}
+
+// handleUpdateShipment обновляет существующую отгрузку
+// handleUpdateShipment обновляет существующую отгрузку
+func handleUpdateShipment(w http.ResponseWriter, r *http.Request, shipmentID int) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req UpdateShipmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	date := time.Now()
+	if req.Date != "" {
+		t, err := time.Parse("2006-01-02", req.Date)
+		if err != nil {
+			http.Error(w, "Invalid date format (use YYYY-MM-DD)", http.StatusBadRequest)
+			return
+		}
+		date = t
+	}
+
+	// Обновляем заголовок
+	err := database.UpdateShipment(shipmentID, req.Number, date)
+	if err != nil {
+		logger.Error("API /api/shipments/%d (update): %v", shipmentID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Преобразуем детали в формат database
+	dbDetails := make([]database.ShipmentDetailUpdate, len(req.Details))
+	for i, d := range req.Details {
+		dbDetails[i] = database.ShipmentDetailUpdate{
+			MaterialID: d.MaterialID,
+			Boxes:      d.Boxes,
+			Amount:     d.Amount,
+		}
+	}
+
+	// Обновляем детали
+	err = database.UpdateShipmentDetails(shipmentID, dbDetails)
+	if err != nil {
+		logger.Error("API /api/shipments/%d (update details): %v", shipmentID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Отправляем событие через WebSocket
+	if globalHub != nil {
+		globalHub.BroadcastShipmentCompleted(shipmentID, req.Number)
+	}
+
+	logger.Info("API: Обновлена отгрузка ID=%d", shipmentID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":     "ok",
+		"message":    "Shipment updated",
+		"shipmentId": shipmentID,
 	})
 }
 

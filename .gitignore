@@ -3,3 +3,4 @@ logs/
 /emc_mes
 /emc_mes.exe
 /build.sh
+.idea/workspace.xml

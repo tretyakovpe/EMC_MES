@@ -1,13 +1,12 @@
 package api
 
 import (
+	"EMC_MES/internal/events"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"EMC_MES/internal/events"
 )
 
 var globalHub *events.Hub
@@ -97,7 +96,7 @@ func SetupRoutes() *http.ServeMux {
 			}
 		}
 
-		// Обработка /api/shipments/{id} - просмотр/удаление
+		// Обработка /api/shipments/{id} - просмотр/удаление/обновление
 		if len(path) > 0 && path != "" {
 			shipmentID, err := strconv.Atoi(path)
 			if err == nil {
@@ -106,6 +105,8 @@ func SetupRoutes() *http.ServeMux {
 					handleGetShipmentByID(w, r, shipmentID)
 				case http.MethodDelete:
 					handleDeleteShipment(w, r, shipmentID)
+				case http.MethodPut:
+					handleUpdateShipment(w, r, shipmentID)
 				default:
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				}
