@@ -20,6 +20,7 @@ type MaterialResponse struct {
 	Netto        int    `json:"netto"`
 	Brutto       int    `json:"brutto"`
 	QuantityInHU int    `json:"quantityInHU"`
+	Description  string `json:"description"` // ← ДОБАВЛЕНО
 }
 
 // MaterialRequest структура запроса для создания/обновления материала
@@ -48,7 +49,6 @@ func handleMaterials(w http.ResponseWriter, r *http.Request) {
 
 // handleGetMaterials возвращает список всех материалов
 func handleGetMaterials(w http.ResponseWriter, r *http.Request) {
-	// Получаем параметр prefix для фильтрации по префиксу
 	prefix := r.URL.Query().Get("prefix")
 
 	var materials []database.Material
@@ -77,6 +77,7 @@ func handleGetMaterials(w http.ResponseWriter, r *http.Request) {
 			Netto:        m.Netto,
 			Brutto:       m.Brutto,
 			QuantityInHU: m.QuantityInHU,
+			Description:  strings.TrimSpace(m.Description), // ← ДОБАВЛЕНО
 		})
 	}
 
@@ -92,7 +93,6 @@ func handleCreateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Валидация
 	if req.MaterialCode == "" {
 		http.Error(w, "MaterialCode is required", http.StatusBadRequest)
 		return
@@ -133,7 +133,6 @@ func handleCreateMaterial(w http.ResponseWriter, r *http.Request) {
 
 // handleMaterialByID обрабатывает запросы к /api/materials/{id}
 func handleMaterialByID(w http.ResponseWriter, r *http.Request) {
-	// Извлекаем ID из URL
 	path := strings.TrimPrefix(r.URL.Path, "/api/materials/")
 	idStr := strings.Split(path, "/")[0]
 
@@ -177,6 +176,7 @@ func handleGetMaterialByID(w http.ResponseWriter, r *http.Request, materialID in
 		Netto:        material.Netto,
 		Brutto:       material.Brutto,
 		QuantityInHU: material.QuantityInHU,
+		Description:  strings.TrimSpace(material.Description), // ← ДОБАВЛЕНО
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -191,7 +191,6 @@ func handleUpdateMaterial(w http.ResponseWriter, r *http.Request, materialID int
 		return
 	}
 
-	// Валидация
 	if req.CustomerCode == "" {
 		http.Error(w, "CustomerCode is required", http.StatusBadRequest)
 		return
@@ -273,6 +272,7 @@ func handleGetMaterialByCode(w http.ResponseWriter, r *http.Request) {
 		Netto:        material.Netto,
 		Brutto:       material.Brutto,
 		QuantityInHU: material.QuantityInHU,
+		Description:  strings.TrimSpace(material.Description), // ← ДОБАВЛЕНО
 	}
 
 	w.Header().Set("Content-Type", "application/json")

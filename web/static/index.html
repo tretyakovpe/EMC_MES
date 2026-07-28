@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #c0c0c0;
@@ -19,25 +20,25 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .portal-container {
             text-align: center;
             padding: 40px;
         }
-        
+
         h1 {
             color: #cc0000;
             margin-bottom: 40px;
             font-size: 32px;
         }
-        
+
         .portal-grid {
             display: flex;
             gap: 30px;
             flex-wrap: wrap;
             justify-content: center;
         }
-        
+
         .portal-card {
             background: #e8e8e8;
             border-radius: 12px;
@@ -49,24 +50,24 @@
             border: 2px solid #cc0000;
             min-width: 200px;
         }
-        
+
         .portal-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             background: #f0f0f0;
         }
-        
+
         .portal-icon {
             font-size: 48px;
             margin-bottom: 15px;
         }
-        
+
         .portal-title {
             font-size: 20px;
             font-weight: bold;
             color: #cc0000;
         }
-        
+
         .portal-desc {
             font-size: 12px;
             color: #666;
@@ -74,6 +75,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="portal-container">
         <h1>🏭 MES Система</h1>
@@ -88,7 +90,18 @@
                 <div class="portal-title">Логистика</div>
                 <div class="portal-desc">Планы, Отгрузки</div>
             </a>
+            <a href="/warehouses" class="portal-card">
+                <div class="portal-icon">🏢</div>
+                <div class="portal-title">Склады</div>
+                <div class="portal-desc">Управление складами</div>
+            </a>
+            <a href="/materials" class="portal-card">
+                <div class="portal-icon">📦</div>
+                <div class="portal-title">Материалы</div>
+                <div class="portal-desc">Управление материалами</div>
+            </a>
         </div>
     </div>
 </body>
+
 </html>

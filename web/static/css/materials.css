@@ -1,0 +1,370 @@
+/* ============================================ */
+/* УПРАВЛЕНИЕ МАТЕРИАЛАМИ - ОСНОВНЫЕ СТИЛИ      */
+/* ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #c0c0c0;
+    padding: 0;
+    margin: 0;
+}
+
+/* ============================================ */
+/* NAVBAR                                        */
+/* ============================================ */
+
+.navbar {
+    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%) !important;
+    border-bottom: 2px solid #cc0000;
+    padding: 8px 20px;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #cc0000 !important;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 18px;
+}
+
+.navbar-brand img {
+    height: 32px;
+    width: auto;
+    transition: transform 0.2s ease;
+}
+
+.navbar-brand:hover img {
+    transform: scale(1.05);
+}
+
+.nav-tabs .nav-link {
+    color: #ccc !important;
+    cursor: pointer;
+    padding: 8px 16px;
+    margin: 0 4px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+}
+
+.nav-tabs .nav-link:hover {
+    background: #2a2a3e;
+    color: #fff !important;
+}
+
+.nav-tabs .nav-link.active {
+    background: #cc0000 !important;
+    color: white !important;
+}
+
+/* ============================================ */
+/* ОСНОВНЫЕ КОНТЕЙНЕРЫ                          */
+/* ============================================ */
+
+.materials-container {
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+.materials-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #d4d4d4;
+    border-radius: 8px;
+}
+
+.materials-header h1 {
+    font-size: 24px;
+    color: #333;
+    margin: 0;
+}
+
+/* ============================================ */
+/* КНОПКИ                                        */
+/* ============================================ */
+
+.btn-primary {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #990000;
+    transform: translateY(-1px);
+}
+
+.btn-edit {
+    background: #ffc107;
+    color: #333;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 4px;
+    font-size: 14px;
+}
+
+.btn-edit:hover {
+    background: #e0a800;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-delete:hover {
+    background: #c82333;
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+}
+
+.btn-save {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-save:hover {
+    background: #1e7e34;
+}
+
+/* ============================================ */
+/* ТАБЛИЦА                                       */
+/* ============================================ */
+
+.materials-table-wrapper {
+    background: #e8e8e8;
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+}
+
+.materials-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.materials-table th {
+    background: #cc0000;
+    color: white;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.materials-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.materials-table tr:hover {
+    background: #f5f5f5;
+}
+
+.materials-table .code-cell {
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 13px;
+    color: #cc0000;
+    white-space: nowrap;
+}
+
+/* ============================================ */
+/* МОДАЛЬНОЕ ОКНО                                */
+/* ============================================ */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #d4d4d4;
+    border-radius: 12px;
+    width: 580px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #cc0000;
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.modal-close:hover {
+    opacity: 0.8;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid #ccc;
+}
+
+/* ============================================ */
+/* ФОРМЫ                                         */
+/* ============================================ */
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.form-group .row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-group .col {
+    flex: 1;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #e8e8e8;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #cc0000;
+    background: #f0f0f0;
+}
+
+/* ============================================ */
+/* АДАПТИВНОСТЬ                                  */
+/* ============================================ */
+
+@media (max-width: 768px) {
+    .materials-header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
+
+    .materials-table th,
+    .materials-table td {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .modal-content {
+        width: 95%;
+    }
+
+    .navbar-brand span {
+        display: none;
+    }
+
+    .nav-tabs .nav-link {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .form-group .row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .materials-table {
+        font-size: 10px;
+    }
+
+    .btn-edit,
+    .btn-delete {
+        padding: 2px 6px;
+        font-size: 10px;
+    }
+}

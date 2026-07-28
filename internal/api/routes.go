@@ -1,12 +1,13 @@
 package api
 
 import (
-	"EMC_MES/internal/events"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"EMC_MES/internal/events"
 )
 
 var globalHub *events.Hub
@@ -49,6 +50,13 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/materials", handleMaterials)
 	mux.HandleFunc("/api/materials/code", handleGetMaterialByCode)
 	mux.HandleFunc("/api/materials/", handleMaterialByID)
+	// ==================== СКЛАДЫ ====================
+	mux.HandleFunc("/api/warehouses", handleWarehouses)
+	mux.HandleFunc("/api/warehouses/", handleWarehouseByID)
+
+	// ==================== ПЕРЕМЕЩЕНИЯ ====================
+	mux.HandleFunc("/api/transfers", handleTransfers)
+	mux.HandleFunc("/api/transfers/", handleTransferByID)
 
 	// Коробки
 	mux.HandleFunc("/api/boxes", handleBoxes)
@@ -139,8 +147,20 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/statistics/bad-parts", handleGetBadPartsStats)
 	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 
-	// Склад
+	// Склад ГП
 	mux.HandleFunc("/api/warehouse/stacks", handleWarehouseStacks)
+
+	// Управление складами
+	mux.HandleFunc("/warehouses", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/warehouses.html")
+	})
+
+	// Управление материалами
+	mux.HandleFunc("/materials", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/materials.html")
+	})
 
 	// События
 	mux.HandleFunc("/api/events", handleEvent)

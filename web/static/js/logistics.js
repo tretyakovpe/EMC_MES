@@ -1,6 +1,6 @@
 // ========== РОУТЕР ЛОГИСТИКИ ==========
 
-let currentTab = 'plans';
+let currentTab = 'shipments';
 
 window.addEventListener('DOMContentLoaded', () => {
     renderTab();
@@ -22,12 +22,16 @@ async function renderTab() {
     const container = document.getElementById('tab-container');
     if (!container) return;
 
+    console.log('renderTab called, currentTab:', currentTab);  // ← ОТЛАДКА
+
     if (currentTab === 'plans') {
         await PlansModule.render(container);
     } else if (currentTab === 'warehouse') {
         await WarehouseModule.render(container);
     } else if (currentTab === 'shipments') {
         await ShipmentsModule.render(container);
+    } else if (currentTab === 'transfers') {
+        await TransfersModule.render(container);
     } else if (currentTab === 'stats') {
         container.innerHTML = '<div class="logistics-container"><div class="stats-panel"><h3>📊 Статистика</h3><p>В разработке...</p></div></div>';
     }

@@ -276,20 +276,20 @@ func UpdateMaterial(materialID int, customerCode, destination, hu string, netto,
 	defer cancel()
 
 	query := `
-		UPDATE [dbo].[materials] 
-		SET 
-			CustomerCode = ?,
-			Destination = ?,
-			HU = ?,
-			Netto = ?,
-			Brutto = ?,
-			QuantityInHU = ?,
-			Description = ?
-		WHERE MaterialID = ?`
+        UPDATE [dbo].[materials] 
+        SET 
+            CustomerCode = ?,
+            Destination = ?,
+            HU = ?,
+            Netto = ?,
+            Brutto = ?,
+            QuantityInHU = ?,
+            Description = ?
+        WHERE MaterialID = ?`
 
 	result, err := DB.ExecContext(
 		ctx, query,
-		customerCode, destination, hu, netto, brutto, quantityInHU, materialID, description,
+		customerCode, destination, hu, netto, brutto, quantityInHU, description, materialID,
 	)
 	if err != nil {
 		return fmt.Errorf("ошибка обновления материала: %w", err)
