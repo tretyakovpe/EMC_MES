@@ -9,11 +9,13 @@
     const detailsShipped = document.getElementById('details-shipped');
     const detailsDeviation = document.getElementById('details-deviation');
     const shipmentsTbody = document.getElementById('shipments-tbody');
-    const btnAddShipment = document.getElementById('btn-add-shipment');
+    const itemsTbody = document.getElementById('items-tbody');
+    const btnStartPick = document.getElementById('btn-start-pick');
     const btnCompleteTransfer = document.getElementById('btn-complete-transfer');
 
     const modalEl = document.getElementById('modal-add-shipment');
     const inputMaterial = document.getElementById('input-material-code');
+    const inputMaterialSelect = document.getElementById('input-material-select');
     const inputQty = document.getElementById('input-qty');
     const inputWho = document.getElementById('input-who');
     const modalError = document.getElementById('modal-error');
@@ -22,6 +24,7 @@
     let bsModal = null;
     let transfers = [];
     let selectedTransfer = null;
+    let currentItems = []; // [{materialId, materialCode, planned, shipped}]
 
     function init() {
         // init modal
@@ -31,14 +34,8 @@
         document.getElementById('filter-date').addEventListener('change', loadTransfers);
         document.getElementById('filter-warehouse').addEventListener('change', loadTransfers);
 
-        btnAddShipment.addEventListener('click', () => {
-            modalError.classList.add('d-none');
-            inputMaterial.value = '';
-            inputQty.value = 1;
-            inputWho.value = '';
-            bsModal.show();
-            // autofocus material input for quick scanning
-            setTimeout(() => inputMaterial.focus(), 200);
+        btnStartPick.addEventListener('click', () => {
+            openPickModal();
         });
 
         modalSave.addEventListener('click', onModalSave);
@@ -49,15 +46,14 @@
     }
 
     function loadWarehouses() {
-        // Попытка получить спис��к складов — если API отсутствует, оставим один вариант
         fetch('/api/warehouses')
             .then(res => { if (!res.ok) throw new Error('no'); return res.json(); })
             .then(data => {
                 const sel = document.getElementById('filter-warehouse');
                 data.forEach(w => {
                     const opt = document.createElement('option');
-                    opt.value = w.WarehouseID || w.id || w.warehouseId || '';
-                    opt.textContent = w.Name || w.name || w.Title || w.title || `${opt.value}`;
+                    opt.value = w.warehouseId || w.WarehouseID || w.id || '';
+                    opt.textContent = w.name || w.Name || w.title || w.Title || `${opt.value}`;
                     sel.appendChild(opt);
                 });
             })
@@ -105,12 +101,12 @@
             item.href = '#';
             item.dataset.id = t.transferId || t.TransferID || t.id;
 
-            const badge = deviation > 0 ? `<span class="badge bg-danger ms-2">+${deviation}</span>` : (deviation < 0 ? `<span class="badge bg-success ms-2">${deviation}</span>` : `<span class="badge bg-secondary ms-2">0</span>`);
+            const badge = deviation > 0 ? `<span class="badge bg-warning ms-2">+${deviation}</span>` : (deviation < 0 ? `<span class="badge bg-secondary ms-2">${deviation}</span>` : `<span class="badge bg-success ms-2">0</span>`);
 
             item.innerHTML = `<div class="d-flex w-100 justify-content-between align-items-center">
                 <div>
                     <div><strong>${escapeHtml(t.transferNumber || t.TransferNumber || `#${item.dataset.id}`)}</strong></div>
-                    <div class="small text-muted">${escapeHtml(t.materialCode || t.MaterialCode || t.materialId || t.MaterialID || '')}</div>
+                    <div class="small text-muted">${escapeHtml(t.materialCode || t.MaterialCode || t.materialDesc || '')}</div>
                 </div>
                 <div class="text-end">
                     <div class="small">${planned} шт.</div>
@@ -148,16 +144,15 @@
     async function tryFetchJson(url, options) {
         try {
             const res = await fetch(url, options);
-            if (!res.ok) return { ok: false };
-            const text = await res.text();
-            // try parse JSON safely
-            try {
-                return { ok: true, json: JSON.parse(text) };
-            } catch (err) {
-                return { ok: false };
+            if (!res.ok) return { ok: false, status: res.status, text: await res.text().catch(() => '') };
+            const ct = res.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                return { ok: false, status: res.status, text: await res.text().catch(() => '') };
             }
+            const json = await res.json();
+            return { ok: true, json };
         } catch (err) {
-            return { ok: false };
+            return { ok: false, status: 0, text: String(err) };
         }
     }
 
@@ -176,22 +171,19 @@
         // Get shipments — try multiple endpoints in order
         let shipments = [];
         try {
-            // 1) /api/transfers/{id}/shipments
             let attempt = await tryFetchJson(`/api/transfers/${id}/shipments`);
             if (attempt.ok) shipments = attempt.json;
             else {
-                // 2) /api/transfer-shipments/{id}
                 attempt = await tryFetchJson(`/api/transfer-shipments/${id}`);
                 if (attempt.ok) shipments = attempt.json;
                 else {
-                    // 3) /api/transfer-shipments?transferId={id} (legacy)
                     attempt = await tryFetchJson(`/api/transfer-shipments?transferId=${encodeURIComponent(id)}`);
                     if (attempt.ok) shipments = attempt.json;
                     else shipments = [];
                 }
             }
 
-            // Normalize response to array
+            // Normalize
             if (!Array.isArray(shipments)) {
                 if (Array.isArray(shipments.data)) shipments = shipments.data;
                 else if (Array.isArray(shipments.items)) shipments = shipments.items;
@@ -199,44 +191,90 @@
                 else if (Array.isArray(shipments.result)) shipments = shipments.result;
                 else if (shipments && typeof shipments === 'object') {
                     const vals = Object.values(shipments).filter(v => Array.isArray(v));
-                    if (vals.length > 0) shipments = vals[0];
-                    else shipments = [];
-                } else {
-                    shipments = [];
-                }
+                    shipments = vals.length > 0 ? vals[0] : [];
+                } else shipments = [];
             }
         } catch (err) {
             console.warn('shipments load failed', err);
             shipments = [];
         }
 
-        const planned = transfer.quantity || transfer.Quantity || transfer.planned || 0;
-        // shipped: if transfer has explicit shippedQuantity use it; otherwise sum shipments safely
-        let shipped = 0;
-        if (transfer.shippedQuantity != null) shipped = transfer.shippedQuantity;
-        else if (transfer.ShippedQuantity != null) shipped = transfer.ShippedQuantity;
-        else if (Array.isArray(shipments)) shipped = shipments.reduce((s, x) => s + (Number(x.quantity || x.Quantity || x.qty || 0) || 0), 0);
-        else shipped = 0;
-        const deviation = shipped - planned;
-
-        detailsTitle.textContent = `Заказ: ${transfer.transferNumber || transfer.TransferNumber || ('#' + id)}`;
-        detailsMaterial.textContent = transfer.materialCode || transfer.MaterialCode || transfer.materialId || transfer.MaterialID || '';
-        detailsPlanned.textContent = planned + ' шт.';
-        detailsShipped.textContent = shipped + ' шт.';
-
-        detailsDeviation.className = 'badge';
-        if (deviation > 0) {
-            detailsDeviation.classList.add('badge-deviation-positive');
-            detailsDeviation.textContent = '+' + deviation + ' шт.';
-        } else if (deviation < 0) {
-            detailsDeviation.classList.add('badge-deviation-negative');
-            detailsDeviation.textContent = deviation + ' шт.';
+        // Build items list: try transfer.items or single material
+        const items = [];
+        if (Array.isArray(transfer.items) && transfer.items.length > 0) {
+            transfer.items.forEach(it => {
+                items.push({
+                    materialId: it.materialId || it.MaterialID || it.id,
+                    materialCode: it.materialCode || it.MaterialCode || it.code || it.Code,
+                    planned: it.quantity || it.Quantity || it.planned || 0
+                });
+            });
         } else {
-            detailsDeviation.classList.add('bg-secondary');
-            detailsDeviation.textContent = '0';
+            items.push({
+                materialId: transfer.materialId || transfer.MaterialID || transfer.material || transfer.Material || null,
+                materialCode: transfer.materialCode || transfer.MaterialCode || transfer.materialDesc || transfer.material || '',
+                planned: transfer.quantity || transfer.Quantity || 0
+            });
         }
 
-        // Render shipments (defensive)
+        // Aggregate shipped per material
+        const shippedBy = {};
+        if (Array.isArray(shipments)) {
+            shipments.forEach(s => {
+                const mid = s.materialId || s.MaterialID || s.materialId || s.material || s.Material || null;
+                const q = Number(s.quantity || s.Quantity || s.qty || 0) || 0;
+                if (!mid) return;
+                shippedBy[mid] = (shippedBy[mid] || 0) + q;
+            });
+        }
+
+        // Fill currentItems and render table
+        currentItems = items.map(it => {
+            const shipped = shippedBy[it.materialId] || 0;
+            return Object.assign({}, it, { shipped, remaining: it.planned - shipped });
+        });
+
+        // Render items table
+        itemsTbody.innerHTML = '';
+        currentItems.forEach(it => {
+            const tr = document.createElement('tr');
+            let cls = '';
+            if (it.shipped === it.planned) cls = 'table-success';
+            else if (it.shipped > it.planned) cls = 'table-warning';
+            // remaining could be negative
+            tr.className = cls;
+            tr.innerHTML = `<td>${escapeHtml(it.materialCode || (it.materialId || ''))}</td>
+                <td>${it.planned} шт.</td>
+                <td>${it.shipped} шт.</td>
+                <td>${Math.max(0, it.planned - it.shipped)} шт.</td>
+                <td>${it.shipped === it.planned ? 'Готово' : (it.shipped > it.planned ? 'Перебор' : 'В работе')}</td>`;
+            itemsTbody.appendChild(tr);
+        });
+
+        // Prepare material select in modal
+        if (currentItems.length > 1) {
+            inputMaterialSelect.innerHTML = '';
+            currentItems.forEach(it => {
+                const opt = document.createElement('option');
+                opt.value = it.materialId || it.materialCode;
+                opt.textContent = `${it.materialCode || it.materialId} — план ${it.planned}`;
+                inputMaterialSelect.appendChild(opt);
+            });
+            inputMaterialSelect.classList.remove('d-none');
+            inputMaterial.classList.add('d-none');
+        } else {
+            inputMaterialSelect.classList.add('d-none');
+            inputMaterial.classList.remove('d-none');
+            inputMaterial.value = currentItems[0].materialCode || '';
+        }
+
+        const plannedTotal = items.reduce((s, it) => s + (it.planned || 0), 0);
+        const shippedTotal = Object.values(shippedBy).reduce((s, v) => s + v, 0);
+        const deviation = shippedTotal - plannedTotal;
+
+        detailsTitle.textContent = `Заказ: ${transfer.transferNumber || transfer.TransferNumber || ('#' + id)}`;
+
+        // Render shipments history
         shipmentsTbody.innerHTML = '';
         if (Array.isArray(shipments) && shipments.length > 0) {
             shipments.forEach(s => {
@@ -259,19 +297,42 @@
         showDetails();
     }
 
+    function openPickModal() {
+        modalError.classList.add('d-none');
+        inputQty.value = 1;
+        inputWho.value = '';
+        if (currentItems.length > 1) {
+            inputMaterialSelect.classList.remove('d-none');
+            inputMaterial.classList.add('d-none');
+        } else {
+            inputMaterialSelect.classList.add('d-none');
+            inputMaterial.classList.remove('d-none');
+            inputMaterial.value = currentItems[0] ? currentItems[0].materialCode : '';
+        }
+        bsModal.show();
+        setTimeout(() => {
+            if (inputMaterial.classList.contains('d-none')) inputMaterialSelect.focus(); else inputMaterial.focus();
+        }, 200);
+    }
+
     async function onModalSave() {
         modalError.classList.add('d-none');
-        const code = inputMaterial.value.trim();
         const qty = parseInt(inputQty.value, 10);
         const who = inputWho.value.trim() || 'Неизвестно';
 
+        let selectedMaterialId = null;
+        let selectedMaterialCode = null;
+        if (currentItems.length > 1) {
+            const val = inputMaterialSelect.value;
+            // value was set to materialId or materialCode
+            selectedMaterialId = isNaN(Number(val)) ? null : Number(val);
+            selectedMaterialCode = isNaN(Number(val)) ? val : null;
+        } else {
+            selectedMaterialCode = inputMaterial.value.trim();
+        }
+
         if (!selectedTransfer || !selectedTransfer.transferId && !selectedTransfer.TransferID && !selectedTransfer.id) {
             modalError.textContent = 'Не выбрана заявка';
-            modalError.classList.remove('d-none');
-            return;
-        }
-        if (!code) {
-            modalError.textContent = 'Укажите код материала';
             modalError.classList.remove('d-none');
             return;
         }
@@ -281,30 +342,47 @@
             return;
         }
 
+        // Find material in currentItems by id or code
+        let found = null;
+        if (selectedMaterialId) {
+            found = currentItems.find(it => String(it.materialId) === String(selectedMaterialId));
+        } else if (selectedMaterialCode) {
+            found = currentItems.find(it => (it.materialCode || '').toLowerCase() === selectedMaterialCode.toLowerCase());
+            // if not found by code, try fetching material by code to get materialId
+        }
+
+        let materialIdToSend = null;
+        if (found) materialIdToSend = found.materialId;
+        else if (selectedMaterialCode) {
+            // try lookup via API
+            try {
+                const res = await fetch(`/api/materials/code?code=${encodeURIComponent(selectedMaterialCode)}`);
+                if (res.ok) {
+                    const m = await res.json();
+                    materialIdToSend = m.materialId || m.MaterialID || m.id || m.materialId || null;
+                }
+            } catch (err) { /* ignore */ }
+        }
+
+        if (!materialIdToSend) {
+            modalError.textContent = 'Материал не найден в накладной';
+            modalError.classList.remove('d-none');
+            return;
+        }
+
         const payload = {
             transferId: selectedTransfer.transferId || selectedTransfer.TransferID || selectedTransfer.id,
-            materialCode: code,
+            materialId: materialIdToSend,
             quantity: qty,
             createdBy: who
         };
 
         try {
-            // try POST to /api/transfer-shipments (server expects JSON with transferId/materialId or materialCode depending on implementation)
             let res = await fetch('/api/transfer-shipments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
-            if (!res.ok) {
-                // fallback: /api/transfers/{id}/shipments
-                res = await fetch(`/api/transfers/${payload.transferId}/shipments`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ materialCode: code, quantity: qty, createdBy: who })
-                });
-            }
-
             if (!res.ok) {
                 const txt = await res.text().catch(() => 'Ошибка сервера');
                 throw new Error(txt || `HTTP ${res.status}`);
@@ -326,10 +404,8 @@
         if (!confirm('Завершить перемещение? Статус станет "Завершена".')) return;
 
         try {
-            // try POST /api/transfers/{id}/complete
             let res = await fetch(`/api/transfers/${id}/complete`, { method: 'POST' });
             if (!res.ok) {
-                // fallback: PUT /api/transfers/{id} {status: 'Завер��ена'}
                 res = await fetch(`/api/transfers/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },

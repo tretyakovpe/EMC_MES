@@ -64,10 +64,24 @@
             <div id="details" class="d-none">
                 <h5 id="details-title"></h5>
                 <div class="mb-3">
-                    <div>Материал: <strong id="details-material"></strong></div>
-                    <div>Запланировано: <strong id="details-planned"></strong></div>
-                    <div>Отгружено: <strong id="details-shipped"></strong></div>
-                    <div>Отклонение: <span id="details-deviation" class="badge"></span></div>
+                    <div>Материал(ы):</div>
+                </div>
+
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Материал</th>
+                            <th>План</th>
+                            <th>Отгружено</th>
+                            <th>Остаток</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody"></tbody>
+                </table>
+
+                <div class="mt-3 mb-3 d-flex justify-content-end">
+                    <button id="btn-start-pick" class="btn btn-sm btn-primary">Начать сборку</button>
                 </div>
 
                 <hr>
@@ -85,7 +99,6 @@
                 </table>
 
                 <div class="mt-3 d-flex gap-2">
-                    <button id="btn-add-shipment" class="btn btn-sm btn-primary">➕ Добавить отгрузку</button>
                     <button id="btn-complete-transfer" class="btn btn-sm btn-success">✅ Завершить перемещение</button>
                 </div>
             </div>
@@ -104,7 +117,8 @@
       <div class="modal-body">
         <div class="mb-2">
             <label class="form-label">Материал (код)</label>
-            <input id="input-material-code" class="form-control form-control-sm" placeholder="LD1100-101">
+            <input id="input-material-code" class="form-control form-control-sm" placeholder="LF2500-101">
+            <select id="input-material-select" class="form-select form-select-sm d-none mt-2"></select>
         </div>
         <div class="mb-2">
             <label class="form-label">Количество (шт.)</label>
