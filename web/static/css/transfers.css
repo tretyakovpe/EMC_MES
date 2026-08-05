@@ -9,77 +9,102 @@
     background: #c0c0c0;
 }
 
-.transfers-header {
+.panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 16px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
     background: #d4d4d4;
     border-radius: 8px;
 }
 
-.transfers-header h3 {
+.panel-header h3 {
     margin: 0;
     font-size: 18px;
     color: #333;
 }
 
-/* Сетка карточек заявок */
-.transfers-list {
+.transfers-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    height: 100%;
 }
 
-/* Карточка заявки */
-.transfer-card {
+.transfers-list-panel {
     background: #e8e8e8;
-    border: 1px solid #ccc;
     border-radius: 8px;
     padding: 16px;
+}
+
+.transfers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-height: 600px;
+    overflow-y: auto;
+    align-content: start;
+}
+
+/* Карточка заказа - компактная */
+.transfer-card {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
     transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .transfer-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.transfer-card.completed {
+    opacity: 0.85;
+    background: #e8f5e9;
+    border-color: #a5d6a7;
 }
 
 .transfer-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    padding-bottom: 4px;
     border-bottom: 1px solid #ddd;
 }
 
 .transfer-number {
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     color: #cc0000;
 }
 
 .transfer-status {
-    padding: 4px 12px;
+    padding: 2px 10px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
     color: white;
+    white-space: nowrap;
 }
 
 .transfer-body {
-    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
 .transfer-route {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    margin-bottom: 8px;
+    gap: 6px;
+    font-size: 12px;
 }
 
 .transfer-arrow {
@@ -87,105 +112,270 @@
     font-weight: bold;
 }
 
-.transfer-material {
+.transfer-materials {
     display: flex;
-    justify-content: space-between;
-    font-size: 14px;
-    background: #f0f0f0;
-    padding: 8px;
-    border-radius: 4px;
-    margin-bottom: 8px;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.transfer-material strong {
+.transfer-material-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.transfer-material-item strong {
     color: #333;
+    font-size: 12px;
+}
+
+.transfer-material-item span {
+    font-size: 11px;
+    color: #666;
 }
 
 .transfer-date {
-    font-size: 11px;
+    font-size: 10px;
     color: #888;
-    display: flex;
-    justify-content: space-between;
+    margin-top: 2px;
 }
 
-.completed-at {
-    color: #28a745;
+.transfer-actions-row {
+    display: flex;
+    gap: 4px;
+    padding-top: 6px;
+    border-top: 1px solid #ddd;
+    flex-wrap: wrap;
+}
+
+.transfer-actions-row button {
+    padding: 2px 8px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+
+.transfer-actions-row button:hover {
+    transform: translateY(-1px);
+}
+
+.edit-transfer-btn {
+    background: #ffc107;
+    color: #000;
+}
+
+.delete-transfer-btn {
+    background: #dc3545;
+    color: #fff;
+}
+
+.complete-transfer-btn {
+    background: #28a745;
+    color: #fff;
+}
+
+/* Панель редактора */
+.transfer-editor-panel {
+    background: #e8e8e8;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.transfer-route-input {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-group label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+}
+
+.form-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #f5f5f5;
+    font-size: 14px;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #cc0000;
+}
+
+.transfer-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    min-height: 60px;
+}
+
+.empty-items {
+    text-align: center;
+    padding: 20px;
+    color: #888;
+    font-size: 14px;
+}
+
+.transfer-item-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.item-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.item-info strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.item-info span {
+    color: #666;
+    font-size: 13px;
+}
+
+.item-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.item-delete {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.item-delete:hover {
+    background: #c82333;
 }
 
 .transfer-actions {
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    padding-top: 8px;
+    gap: 10px;
+    padding-top: 12px;
     border-top: 1px solid #ddd;
 }
 
-.transfer-actions button {
-    padding: 4px 12px;
+/* Кнопки */
+.btn-primary {
+    background: #cc0000;
+    color: white;
     border: none;
+    padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     transition: all 0.2s;
 }
 
-.transfer-actions button:hover {
+.btn-primary:hover {
+    background: #a30000;
     transform: translateY(-1px);
 }
 
-.btn-start {
-    background: #ffc107;
-    color: #333;
-}
-
-.btn-complete {
-    background: #17a2b8;
-    color: white;
-}
-
-.btn-finish {
-    background: #28a745;
-    color: white;
-}
-
-.btn-delete {
-    background: #dc3545;
-    color: white;
-}
-
-.btn-detail {
+.btn-secondary {
     background: #6c757d;
     color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
 }
 
-/* ============================================ */
-/* МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ЗАЯВКИ               */
-/* ============================================ */
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
 
-.transfer-modal {
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-success:hover {
+    background: #1e7e34;
+    transform: translateY(-1px);
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #333;
+    padding: 0 8px;
+}
+
+.btn-close:hover {
+    color: #cc0000;
+}
+
+/* Панель выбора материалов */
+.materials-picker {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
 }
 
-.transfer-modal-content {
+.picker-content {
     background: #d4d4d4;
     border-radius: 12px;
     width: 480px;
     max-width: 90%;
-    max-height: 90%;
+    max-height: 80%;
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
-.transfer-modal-header {
+.picker-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -194,12 +384,12 @@
     color: white;
 }
 
-.transfer-modal-header h3 {
+.picker-header h4 {
     margin: 0;
     font-size: 18px;
 }
 
-.close-modal-btn {
+.close-picker-btn {
     background: none;
     border: none;
     color: white;
@@ -207,74 +397,62 @@
     cursor: pointer;
 }
 
-.transfer-modal-body {
-    padding: 20px;
-}
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 12px;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 4px;
-}
-
-.form-control {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #999;
-    border-radius: 4px;
-    background: #e8e8e8;
-    font-size: 14px;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: #cc0000;
-}
-
-.transfer-modal-footer {
+.materials-list {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 16px 20px;
-    border-top: 1px solid #ccc;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.btn-cancel {
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 8px 16px;
+.material-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #e8e8e8;
     border-radius: 4px;
-    cursor: pointer;
+    border: 1px solid #ccc;
 }
 
-.btn-save {
+.material-item:hover {
+    background: #f0f0f0;
+}
+
+.material-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.material-info strong {
+    color: #333;
+    font-size: 13px;
+}
+
+.material-info span {
+    color: #666;
+    font-size: 12px;
+}
+
+.add-material-btn {
     background: #28a745;
     color: white;
     border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
+    padding: 4px 12px;
+    border-radius: 3px;
     cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
 }
 
-.btn-cancel:hover {
-    background: #5a6268;
-}
-
-.btn-save:hover {
+.add-material-btn:hover {
     background: #1e7e34;
+    transform: translateY(-1px);
 }
 
-/* ============================================ */
-/* ПУСТОЕ СОСТОЯНИЕ И ЗАГРУЗКА                  */
-/* ============================================ */
-
+/* Пустое состояние */
 .empty-state {
     text-align: center;
     padding: 40px;
@@ -282,28 +460,45 @@
     font-size: 16px;
 }
 
-.loading {
-    text-align: center;
-    padding: 40px;
-    color: #888;
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .transfers-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
-/* ============================================ */
-/* АДАПТИВНОСТЬ                                 */
-/* ============================================ */
+@media (max-width: 1024px) {
+    .transfers-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .transfer-route-input {
+        grid-template-columns: 1fr;
+    }
+
+    .transfers-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
 
 @media (max-width: 768px) {
-    .transfers-header {
+    .panel-header {
         flex-direction: column;
         gap: 12px;
         text-align: center;
     }
 
-    .transfers-list {
+    .transfers-grid {
         grid-template-columns: 1fr;
     }
 
-    .transfer-modal-content {
+    .picker-content {
         width: 95%;
+    }
+}
+
+@media (max-width: 480px) {
+    .transfers-grid {
+        grid-template-columns: 1fr;
     }
 }

@@ -93,9 +93,9 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/statistics/boxes", handleGetBoxesStats)
 	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 
-	// Перемещения
-	mux.HandleFunc("/api/transfers", handleTransfers)
-	mux.HandleFunc("/api/transfers/", handleTransferByID)
+	// ==================== ЗАКАЗЫ НА ПЕРЕМЕЩЕНИЕ (НОВЫЕ) ====================
+	mux.HandleFunc("/api/transfer-orders", handleTransferOrders)
+	mux.HandleFunc("/api/transfer-orders/", handleTransferOrderByID)
 
 	// Перемещения — фактические отгрузки
 	mux.HandleFunc("/api/transfer-shipments", handleTransferShipments)

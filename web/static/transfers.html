@@ -1,145 +1,170 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Перемещения — MES</title>
+    <title>Перемещения</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/common.css">
-    <style>
-        .screen {
-            padding: 16px;
-        }
-        .transfers-list {
-            height: calc(100vh - 120px);
-            overflow: auto;
-        }
-        .transfer-row {
-            cursor: pointer;
-        }
-        .transfer-row.active {
-            background: #f8f9fa;
-            border-left: 4px solid #0d6efd;
-        }
-        .details-panel {
-            border-left: 1px solid #e9ecef;
-            height: calc(100vh - 120px);
-            overflow: auto;
-            padding: 16px;
-        }
-        .badge-deviation-positive { background: #dc3545; }
-        .badge-deviation-negative { background: #198754; }
-    </style>
+    <link rel="stylesheet" href="/static/css/transfers-warehouse.css">
 </head>
+
 <body>
-<nav class="navbar bg-light px-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">
-            <img src="/static/images/logo.png" alt="Logo" height="28">
-        </a>
-        <div class="d-flex align-items-center">
-            <h5 class="mb-0">📦 Перемещения — Для сборки</h5>
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-dark px-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <img src="/static/images/logo.png" alt="Company Logo" height="32" class="d-inline-block align-top">
+                <span class="ms-2 d-none d-sm-inline">📦 Перемещения</span>
+            </a>
         </div>
-    </div>
-</nav>
+    </nav>
 
-<div class="container-fluid screen">
-    <div class="row g-0">
-        <div class="col-5 px-3">
-            <div class="mb-2 d-flex gap-2">
-                <select id="filter-warehouse" class="form-select form-select-sm" style="width:220px">
-                    <option value="">Все склады (отправитель)</option>
-                </select>
-                <input id="filter-date" type="date" class="form-control form-control-sm" style="width:180px">
-                <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">Обновить</button>
-            </div>
-
-            <div class="list-group transfers-list" id="transfers-list" role="tablist">
-                <!-- динамические строки -->
-            </div>
-        </div>
-
-        <div class="col-7 details-panel" id="details-panel">
-            <div id="details-empty" class="text-muted">Выберите заявку слева чтобы открыть детали</div>
-            <div id="details" class="d-none">
-                <h5 id="details-title"></h5>
-                <div class="mb-3">
-                    <div>Материал(ы):</div>
+    <!-- Контент -->
+    <div class="transfers-container">
+        <div class="transfers-layout">
+            <!-- Левая панель: список заказов -->
+            <div class="transfers-list-panel">
+                <div class="panel-header">
+                    <h3>📦 Заказы на перемещение</h3>
+                    <div class="panel-actions">
+                        <button id="refresh-btn" class="btn-secondary">🔄</button>
+                        <button id="create-transfer-btn" class="btn-primary">➕ Создать заказ</button>
+                    </div>
                 </div>
-
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Материал</th>
-                            <th>План</th>
-                            <th>Отгружено</th>
-                            <th>Остаток</th>
-                            <th>Статус</th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-tbody"></tbody>
-                </table>
-
-                <div class="mt-3 mb-3 d-flex justify-content-end">
-                    <button id="btn-start-pick" class="btn btn-sm btn-primary">Начать сборку</button>
+                <div class="filters">
+                    <div class="form-group">
+                        <label>Дата:</label>
+                        <input type="date" id="filter-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Склад откуда:</label>
+                        <select id="filter-warehouse" class="form-input">
+                            <option value="">Все склады</option>
+                        </select>
+                    </div>
                 </div>
-
-                <hr>
-                <h6>История отгрузок</h6>
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Дата</th>
-                            <th>Количество</th>
-                            <th>Кто</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shipments-tbody">
-                    </tbody>
-                </table>
-
-                <div class="mt-3 d-flex gap-2">
-                    <button id="btn-complete-transfer" class="btn btn-sm btn-success">✅ Завершить перемещение</button>
+                <div class="transfers-grid" id="transfers-list">
+                    <div class="loading">Загрузка...</div>
                 </div>
             </div>
+
+            <!-- Правая панель: детали заказа -->
+            <div class="transfer-details-panel" id="details-panel">
+                <div class="details-empty" id="details-empty">
+                    <div class="empty-icon">📋</div>
+                    <p>Выберите заказ для просмотра</p>
+                </div>
+
+                <div class="details-content" id="details-content" style="display: none;">
+                    <div class="details-header">
+                        <h3 id="details-title">Заказ №123</h3>
+                        <span class="details-status" id="details-status">🔄 В работе</span>
+                    </div>
+
+                    <div class="details-info">
+                        <div class="info-row">
+                            <span class="info-label">🏢 Откуда:</span>
+                            <span id="details-from">Склад А</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏢 Куда:</span>
+                            <span id="details-to">Склад Б</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📅 Плановая дата:</span>
+                            <span id="details-planned">2026-08-06</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📅 Создан:</span>
+                            <span id="details-created">2026-08-05 14:30</span>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📦 Материалы</h4>
+                        <div class="table-wrapper">
+                            <table class="details-table" id="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>Код</th>
+                                        <th>Описание</th>
+                                        <th>План</th>
+                                        <th>Отгружено</th>
+                                        <th>Остаток</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📋 История отгрузок</h4>
+                        <div class="table-wrapper">
+                            <table class="details-table" id="shipments-table">
+                                <thead>
+                                    <tr>
+                                        <th>Дата</th>
+                                        <th>Материал</th>
+                                        <th>Количество</th>
+                                        <th>Кто</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shipments-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="details-actions">
+                        <button id="btn-add-shipment" class="btn-secondary">➕ Добавить отгрузку</button>
+                        <button id="btn-complete-order" class="btn-success" disabled>✅ Завершить заказ</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Modal: add shipment -->
-<div class="modal" tabindex="-1" id="modal-add-shipment">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Добавить отгрузку</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-2">
-            <label class="form-label">Материал (код)</label>
-            <input id="input-material-code" class="form-control form-control-sm" placeholder="LF2500-101">
-            <select id="input-material-select" class="form-select form-select-sm d-none mt-2"></select>
+    <!-- Модальное окно для добавления отгрузки -->
+    <div class="modal" id="modal-add-shipment" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Добавить отгрузку</h3>
+                <button class="modal-close" id="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-error" class="modal-error" style="display: none;"></div>
+
+                <div class="form-group">
+                    <label>Материал:</label>
+                    <select id="input-material-select" class="form-input">
+                    </select>
+                    <input type="text" id="input-material-code" class="form-input" placeholder="Введите код материала"
+                        style="display: none;">
+                </div>
+
+                <div class="form-group">
+                    <label>Количество (шт):</label>
+                    <input type="number" id="input-qty" class="form-input" value="1" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label>Кто отгрузил:</label>
+                    <input type="text" id="input-who" class="form-input" placeholder="ФИО">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="modal-cancel">Отмена</button>
+                <button class="btn-save" id="modal-save">💾 Сохранить</button>
+            </div>
         </div>
-        <div class="mb-2">
-            <label class="form-label">Количество (шт.)</label>
-            <input id="input-qty" type="number" class="form-control form-control-sm" min="1" value="1">
-        </div>
-        <div class="mb-2">
-            <label class="form-label">Кто</label>
-            <input id="input-who" class="form-control form-control-sm" placeholder="Иванов И." value="">
-        </div>
-        <div id="modal-error" class="text-danger small d-none"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" id="modal-save" class="btn btn-primary btn-sm">Записать</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
-      </div>
     </div>
-  </div>
-</div>
 
-<script src="/static/js/core/api.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/transfers.js"></script>
+    <script src="/static/js/core/api.js"></script>
+    <script src="/static/js/transfers.js"></script>
 </body>
+
 </html>

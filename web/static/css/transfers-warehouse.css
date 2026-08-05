@@ -1,0 +1,578 @@
+/* ============================================ */
+/* ПЕРЕМЕЩЕНИЯ - СТИЛИ ДЛЯ СТРАНИЦЫ             */
+/* ============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: #c0c0c0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.transfers-container {
+    padding: 20px;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+}
+
+.transfers-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    height: 100%;
+}
+
+/* ============================================ */
+/* ЛЕВАЯ ПАНЕЛЬ - СПИСОК                       */
+/* ============================================ */
+
+.transfers-list-panel {
+    background: #e8e8e8;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.filters .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.filters .form-group label {
+    font-size: 11px;
+    font-weight: bold;
+    color: #555;
+}
+
+.filters .form-input {
+    padding: 6px 8px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #f5f5f5;
+    font-size: 13px;
+}
+
+.transfers-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+}
+
+/* Карточка заказа */
+.transfer-card {
+    background: #f5f5f5;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.transfer-card:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.transfer-card.selected {
+    border-color: #cc0000;
+    background: #fff;
+}
+
+.transfer-card.completed {
+    opacity: 0.7;
+}
+
+.transfer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.transfer-number {
+    font-weight: bold;
+    font-size: 14px;
+    color: #cc0000;
+}
+
+.transfer-status {
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    color: white;
+}
+
+.transfer-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.transfer-route {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.transfer-arrow {
+    color: #999;
+}
+
+.transfer-summary {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #666;
+}
+
+.transfer-date {
+    font-size: 11px;
+    color: #888;
+}
+
+/* ============================================ */
+/* ПРАВАЯ ПАНЕЛЬ - ДЕТАЛИ                       */
+/* ============================================ */
+
+.transfer-details-panel {
+    background: #e8e8e8;
+    border-radius: 8px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.details-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #888;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #ccc;
+}
+
+.details-header h3 {
+    margin: 0;
+    font-size: 20px;
+    color: #333;
+}
+
+.details-status {
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    color: white;
+}
+
+.details-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 20px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+.info-row {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.info-label {
+    font-weight: bold;
+    color: #555;
+}
+
+.details-section {
+    margin-top: 4px;
+}
+
+.details-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    color: #333;
+}
+
+.table-wrapper {
+    max-height: 180px;
+    overflow-y: auto;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.details-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #f5f5f5;
+}
+
+.details-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.details-table th {
+    background: #d4d4d4;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: bold;
+    color: #333;
+    border-bottom: 2px solid #bbb;
+}
+
+.details-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.details-table tr:hover td {
+    background: #eee;
+}
+
+.status-done {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-partial {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.status-pending {
+    color: #6c757d;
+}
+
+.details-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 2px solid #ccc;
+}
+
+.details-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================ */
+/* КНОПКИ                                       */
+/* ============================================ */
+
+.btn-primary {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #a30000;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #1e7e34;
+    transform: translateY(-1px);
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+}
+
+.btn-save {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-save:hover {
+    background: #1e7e34;
+}
+
+/* ============================================ */
+/* МОДАЛЬНОЕ ОКНО                              */
+/* ============================================ */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #d4d4d4;
+    border-radius: 12px;
+    width: 420px;
+    max-width: 90%;
+    max-height: 80%;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #cc0000;
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.modal-error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.modal-body .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.modal-body .form-group label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+}
+
+.modal-body .form-input {
+    padding: 8px 10px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #f5f5f5;
+    font-size: 14px;
+}
+
+.modal-body .form-input:focus {
+    outline: none;
+    border-color: #cc0000;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid #ccc;
+}
+
+/* ============================================ */
+/* СОСТОЯНИЯ                                    */
+/* ============================================ */
+
+.empty-state,
+.loading,
+.error-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+    font-size: 15px;
+}
+
+.error-state {
+    color: #dc3545;
+}
+
+/* ============================================ */
+/* СКРОЛЛБАР                                    */
+/* ============================================ */
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #d4d4d4;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #999;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+/* ============================================ */
+/* АДАПТИВНОСТЬ                                 */
+/* ============================================ */
+
+@media (max-width: 1024px) {
+    .transfers-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        min-height: 100%;
+    }
+
+    .transfers-list-panel {
+        max-height: 400px;
+    }
+
+    .transfers-grid {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .filters {
+        grid-template-columns: 1fr;
+    }
+
+    .details-info {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-content {
+        width: 95%;
+    }
+
+    .panel-header {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .panel-actions {
+        justify-content: center;
+    }
+}
