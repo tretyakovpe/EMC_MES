@@ -4,8 +4,18 @@ const ShipmentsModule = {
     currentShipment: null,
     shipmentItems: [],
     shipments: [],
+    viewMode: 'table', // 'cards' или 'table'
+    sortField: null,
+    sortDirection: 'asc',
+    filterStatus: 'all',
 
     async render(container) {
+        // Загружаем сохранённый режим
+        this.viewMode = localStorage.getItem('shipmentsViewMode') || 'cards';
+        this.sortField = localStorage.getItem('shipmentsSortField') || null;
+        this.sortDirection = localStorage.getItem('shipmentsSortDirection') || 'asc';
+        this.filterStatus = localStorage.getItem('shipmentsFilterStatus') || 'all';
+
         container.innerHTML = `
             <div class="logistics-container">
                 <div class="shipments-layout">
@@ -13,36 +23,87 @@ const ShipmentsModule = {
                     <div class="shipments-list-panel">
                         <div class="panel-header">
                             <h3>🚛 Отгрузки</h3>
+                            
+                            <!-- ПЕРЕКЛЮЧАТЕЛЬ ВИДА -->
+                            <div class="view-toggle">
+                                <button class="view-toggle-btn ${this.viewMode === 'cards' ? 'active' : ''}" 
+                                        data-view="cards" 
+                                        title="Вид карточками">
+                                    🃏 Карточки
+                                </button>
+                                <button class="view-toggle-btn ${this.viewMode === 'table' ? 'active' : ''}" 
+                                        data-view="table" 
+                                        title="Табличный вид">
+                                    📊 Таблица
+                                </button>
+                            </div>
+                            
                             <button id="create-shipment-btn" class="btn-primary">➕ Новая отгрузка</button>
                             <button id="clipboard-shipment-btn" class="btn-secondary">📋 Из буфера</button>
                         </div>
-                        <div class="shipments-grid" id="shipments-list">
+                        
+                        <!-- Фильтры для таблицы -->
+                        <div class="table-filters" id="table-filters" style="${this.viewMode === 'table' ? 'display:flex' : 'display:none'}">
+                            <select id="status-filter" class="form-select">
+                                <option value="all" ${this.filterStatus === 'all' ? 'selected' : ''}>Все статусы</option>
+                                <option value="active" ${this.filterStatus === 'active' ? 'selected' : ''}>🔄 В работе</option>
+                                <option value="completed" ${this.filterStatus === 'completed' ? 'selected' : ''}>📦 Готова</option>
+                                <option value="done" ${this.filterStatus === 'done' ? 'selected' : ''}>🚚 Отгружена</option>
+                            </select>
+                            <input type="text" id="table-search" placeholder="🔍 Поиск по номеру..." class="form-input" style="width:200px;">
+                            <button id="clear-filters-btn" class="btn-secondary">Очистить</button>
+                        </div>
+                        
+                        <!-- КАРТОЧКИ -->
+                        <div class="shipments-grid ${this.viewMode === 'cards' ? 'visible' : 'hidden'}" id="shipments-grid">
                             <div class="loading">Загрузка...</div>
+                        </div>
+                        
+                        <!-- ТАБЛИЦА -->
+                        <div class="shipments-table-wrapper ${this.viewMode === 'table' ? 'visible' : ''}" id="shipments-table-wrapper">
+                            <table class="shipments-table" id="shipments-table">
+                                <thead>
+                                    <tr>
+                                        <th data-sort="shipmentId">ID <span class="sort-icon">↕</span></th>
+                                        <th data-sort="number">№ накладной <span class="sort-icon">↕</span></th>
+                                        <th data-sort="date">Дата <span class="sort-icon">↕</span></th>
+                                        <th data-sort="status">Статус <span class="sort-icon">↕</span></th>
+                                        <th data-sort="progress">Прогресс <span class="sort-icon">↕</span></th>
+                                        <th data-sort="totalItems">Позиций</th>
+                                        <th data-sort="totalBoxes">Коробок</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shipments-table-body">
+                                    <tr><td colspan="8" class="empty-table">Загрузка...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     
                     <!-- Правая панель: создание отгрузки -->
-<div class="shipment-editor-panel" id="shipment-editor" style="display: none;">
-    <div class="panel-header">
-        <h3>📦 Сборка отгрузки</h3>
-        <button id="close-editor-btn" class="btn-close">✕</button>
-    </div>
-    <div class="shipment-number-input">
-        <label>Номер накладной:</label>
-        <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
-    </div>
-    <div class="shipment-number-input">
-        <label>Дата отгрузки:</label>
-        <input type="date" id="shipment-date" class="form-input">
-    </div>
-    <div class="shipment-items-list" id="shipment-items-list">
-        <div class="empty-items">Добавьте материалы</div>
-    </div>
-    <div class="shipment-actions">
-        <button id="add-material-btn" class="btn-secondary">➕ Добавить материал</button>
-        <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
-    </div>
-</div>                    
+                    <div class="shipment-editor-panel" id="shipment-editor" style="display: none;">
+                        <div class="panel-header">
+                            <h3>📦 Сборка отгрузки</h3>
+                            <button id="close-editor-btn" class="btn-close">✕</button>
+                        </div>
+                        <div class="shipment-number-input">
+                            <label>Номер накладной:</label>
+                            <input type="text" id="shipment-number" placeholder="Введите номер накладной" class="form-input">
+                        </div>
+                        <div class="shipment-number-input">
+                            <label>Дата отгрузки:</label>
+                            <input type="date" id="shipment-date" class="form-input">
+                        </div>
+                        <div class="shipment-items-list" id="shipment-items-list">
+                            <div class="empty-items">Добавьте материалы</div>
+                        </div>
+                        <div class="shipment-actions">
+                            <button id="add-material-btn" class="btn-secondary">➕ Добавить материал</button>
+                            <button id="save-shipment-btn" class="btn-success">💾 Сохранить отгрузку</button>
+                        </div>
+                    </div>
+                    
                     <!-- Панель выбора материалов -->
                     <div id="materials-picker" class="materials-picker" style="display: none;">
                         <div class="picker-content">
@@ -59,26 +120,41 @@ const ShipmentsModule = {
 
         await this.loadShipments();
         this.attachEvents();
+        this.applyStoredSort();
+        this.applyFilter();
     },
 
     async loadShipments() {
         try {
-            // Запрашиваем только незавершённые отгрузки (done = false)
             const shipments = await API.getShipments({ done: false });
             this.shipments = shipments;
-            this.renderShipmentsList();
+            this.renderView();
         } catch (error) {
             console.error('Ошибка загрузки отгрузок:', error);
-            const container = document.getElementById('shipments-list');
-            if (container) {
-                container.innerHTML = '<div class="empty-state">❌ Ошибка загрузки отгрузок</div>';
-            }
+            const grid = document.getElementById('shipments-grid');
+            const tableBody = document.getElementById('shipments-table-body');
+            const errorMsg = '<div class="empty-state">❌ Ошибка загрузки отгрузок</div>';
+            if (grid) grid.innerHTML = errorMsg;
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="empty-table">❌ Ошибка загрузки</td></tr>`;
         }
     },
 
-    renderShipmentsList() {
-        const container = document.getElementById('shipments-list');
+    renderView() {
+        if (this.viewMode === 'cards') {
+            this.renderCardsView();
+        } else {
+            this.renderTableView();
+        }
+    },
+
+    renderCardsView() {
+        const container = document.getElementById('shipments-grid');
         if (!container) return;
+
+        // Показываем карточки, скрываем таблицу
+        document.getElementById('shipments-grid').className = 'shipments-grid visible';
+        document.getElementById('shipments-table-wrapper').className = 'shipments-table-wrapper';
+        document.getElementById('table-filters').style.display = 'none';
 
         if (this.shipments.length === 0) {
             container.innerHTML = '<div class="empty-state">Нет отгрузок за сегодня</div>';
@@ -86,43 +162,154 @@ const ShipmentsModule = {
         }
 
         container.innerHTML = this.shipments.map(s => `
-        <div class="shipment-card ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}" 
-             data-id="${s.shipmentId}"
-             onclick="ShipmentsModule.viewShipment(${s.shipmentId})">
-            <div class="shipment-header">
-                <span class="shipment-number">№${s.number || s.shipmentId}</span>
-                <span class="shipment-status">${this.getStatusText(s)}</span>
+            <div class="shipment-card ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}" 
+                 data-id="${s.shipmentId}"
+                 onclick="ShipmentsModule.viewShipment(${s.shipmentId})">
+                <div class="shipment-header">
+                    <span class="shipment-number">№${s.number || s.shipmentId}</span>
+                    <span class="shipment-status">${this.getStatusText(s)}</span>
+                </div>
+                <div class="shipment-date">${this.formatDate(s.date)}</div>
+                <div class="shipment-progress">
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div>
+                    <span>${s.progress}%</span>
+                </div>
+                <button class="edit-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.editShipment(${s.shipmentId})">✏️</button>                    
+                <div class="shipment-actions-row">
+                    ${!s.done ? `
+                        <button class="delete-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.deleteShipment(${s.shipmentId})" title="Удалить">🗑</button>
+                    ` : ''}
+                </div>
             </div>
-            <div class="shipment-date">${this.formatDate(s.date)}</div>
-            <div class="shipment-progress">
-                <div class="progress-bar"><div class="progress-fill" style="width: ${s.progress}%"></div></div>
-                <span>${s.progress}%</span>
-            </div>
-                    <button class="edit-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.editShipment(${s.shipmentId})">✏️</button>                    
-            <div class="shipment-actions-row">
-                ${!s.done ? `
-                    <button class="delete-shipment-btn" onclick="event.stopPropagation(); ShipmentsModule.deleteShipment(${s.shipmentId})" title="Удалить">🗑</button>
-                ` : ''}
-            </div>
-        </div>
-    `).join('');
+        `).join('');
     },
 
-    getStatusText(shipment) {
-        if (shipment.done) return '🚚 Отгружена';
-        if (shipment.completed) return '📦 Готова';
-        return '🔄 В работе';
-    },
+    renderTableView() {
+        const tableBody = document.getElementById('shipments-table-body');
+        const wrapper = document.getElementById('shipments-table-wrapper');
+        const filters = document.getElementById('table-filters');
 
-    formatDate(dateStr) {
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        if (!tableBody || !wrapper) return;
+
+        // Показываем таблицу, скрываем карточки
+        document.getElementById('shipments-grid').className = 'shipments-grid hidden';
+        wrapper.className = 'shipments-table-wrapper visible';
+        if (filters) filters.style.display = 'flex';
+
+        // Применяем фильтр и сортировку
+        let filtered = this.filterShipments(this.shipments);
+        filtered = this.sortShipments(filtered);
+
+        if (filtered.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="8" class="empty-table">Нет отгрузок</td></tr>`;
+            return;
         }
-        return dateStr;
+
+        tableBody.innerHTML = filtered.map(s => `
+            <tr data-id="${s.shipmentId}">
+                <td>${s.shipmentId}</td>
+                <td><strong>${s.number || s.shipmentId}</strong></td>
+                <td>${this.formatDate(s.date)}</td>
+                <td><span class="status-badge ${s.done ? 'done' : (s.completed ? 'completed' : 'active')}">${this.getStatusText(s)}</span></td>
+                <td>
+                    <div class="progress-mini"><div class="progress-mini-fill" style="width: ${s.progress}%"></div></div>
+                    <span class="progress-text">${s.progress}%</span>
+                </td>
+                <td>${s.details ? s.details.length : 0}</td>
+                <td>${s.details ? s.details.reduce((sum, d) => sum + d.boxes, 0) : 0}</td>
+                <td>
+                    <div class="table-actions">
+                        <button class="btn-view" onclick="ShipmentsModule.viewShipment(${s.shipmentId})" title="Просмотр">👁</button>
+                        ${!s.done ? `
+                            <button class="btn-edit" onclick="ShipmentsModule.editShipment(${s.shipmentId})" title="Редактировать">✏️</button>
+                            <button class="btn-delete" onclick="ShipmentsModule.deleteShipment(${s.shipmentId})" title="Удалить">🗑</button>
+                        ` : `
+                            <button class="btn-delete" disabled title="Завершённая отгрузка">🗑</button>
+                        `}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        // Восстанавливаем индикаторы сортировки
+        this.updateSortIndicators();
+    },
+
+    filterShipments(shipments) {
+        if (this.filterStatus === 'all') return shipments;
+
+        return shipments.filter(s => {
+            if (this.filterStatus === 'active') return !s.done && !s.completed;
+            if (this.filterStatus === 'completed') return s.completed && !s.done;
+            if (this.filterStatus === 'done') return s.done;
+            return true;
+        });
+    },
+
+    sortShipments(shipments) {
+        if (!this.sortField) return shipments;
+
+        const field = this.sortField;
+        const direction = this.sortDirection === 'asc' ? 1 : -1;
+
+        return [...shipments].sort((a, b) => {
+            let aVal = a[field];
+            let bVal = b[field];
+
+            // Специальная обработка для разных типов
+            if (field === 'status') {
+                const statusOrder = { active: 0, completed: 1, done: 2 };
+                aVal = statusOrder[aVal] ?? 0;
+                bVal = statusOrder[bVal] ?? 0;
+            } else if (field === 'number') {
+                aVal = aVal || 0;
+                bVal = bVal || 0;
+            } else if (field === 'progress') {
+                aVal = aVal || 0;
+                bVal = bVal || 0;
+            }
+
+            if (aVal < bVal) return -1 * direction;
+            if (aVal > bVal) return 1 * direction;
+            return 0;
+        });
+    },
+
+    applyFilter() {
+        // Применяем сохранённый фильтр
+        const filterSelect = document.getElementById('status-filter');
+        if (filterSelect) {
+            filterSelect.value = this.filterStatus;
+        }
+        if (this.viewMode === 'table') {
+            this.renderTableView();
+        }
+    },
+
+    applyStoredSort() {
+        // Применяем сохранённую сортировку к заголовкам таблицы
+        if (this.sortField) {
+            const headers = document.querySelectorAll('#shipments-table th[data-sort]');
+            headers.forEach(th => {
+                if (th.dataset.sort === this.sortField) {
+                    th.classList.add(this.sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                }
+            });
+        }
+    },
+
+    updateSortIndicators() {
+        // Обновляем классы сортировки на заголовках
+        document.querySelectorAll('#shipments-table th[data-sort]').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            if (th.dataset.sort === this.sortField) {
+                th.classList.add(this.sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        });
     },
 
     attachEvents() {
+        // Существующие события
         const createBtn = document.getElementById('create-shipment-btn');
         if (createBtn) {
             createBtn.onclick = () => this.startNewShipment();
@@ -147,11 +334,111 @@ const ShipmentsModule = {
         if (closePickerBtn) {
             closePickerBtn.onclick = () => this.closePicker();
         }
+
         const clipboardBtn = document.getElementById('clipboard-shipment-btn');
         if (clipboardBtn) {
             clipboardBtn.onclick = () => this.showClipboardModal();
         }
 
+        // для переключателя вида
+        document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+            btn.onclick = () => this.toggleView(btn.dataset.view);
+        });
+
+        // События для сортировки таблицы
+        document.querySelectorAll('#shipments-table th[data-sort]').forEach(th => {
+            th.onclick = () => this.handleSort(th.dataset.sort);
+        });
+
+        // События для фильтров
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter) {
+            statusFilter.onchange = (e) => {
+                this.filterStatus = e.target.value;
+                localStorage.setItem('shipmentsFilterStatus', this.filterStatus);
+                this.renderTableView();
+            };
+        }
+
+        const searchInput = document.getElementById('table-search');
+        if (searchInput) {
+            searchInput.oninput = (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderTableView();
+            };
+        }
+
+        const clearFilters = document.getElementById('clear-filters-btn');
+        if (clearFilters) {
+            clearFilters.onclick = () => {
+                const filterSelect = document.getElementById('status-filter');
+                const searchInput = document.getElementById('table-search');
+                if (filterSelect) filterSelect.value = 'all';
+                if (searchInput) searchInput.value = '';
+                this.filterStatus = 'all';
+                this.searchQuery = '';
+                localStorage.setItem('shipmentsFilterStatus', 'all');
+                this.renderTableView();
+            };
+        }
+    },
+
+    toggleView(mode) {
+        if (this.viewMode === mode) return;
+        console.info(mode);
+        this.viewMode = mode;
+        localStorage.setItem('shipmentsViewMode', mode);
+
+        // Обновляем активную кнопку
+        const toggleBtns = document.querySelectorAll('.view-toggle-btn');
+        toggleBtns.forEach(btn => {
+            if (btn.dataset.view === mode) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+            btn.onclick = (e) => {
+                this.toggleView(btn.dataset.view);
+            };
+        });
+
+        // Перерисовываем вид
+        this.renderView();
+
+        // Показываем/скрываем фильтры
+        const filters = document.getElementById('table-filters');
+        if (filters) {
+            filters.style.display = mode === 'table' ? 'flex' : 'none';
+        }
+    },
+
+    handleSort(field) {
+        if (this.sortField === field) {
+            // Меняем направление
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortField = field;
+            this.sortDirection = 'asc';
+        }
+
+        localStorage.setItem('shipmentsSortField', this.sortField);
+        localStorage.setItem('shipmentsSortDirection', this.sortDirection);
+
+        this.renderTableView();
+    },
+
+    getStatusText(shipment) {
+        if (shipment.done) return '🚚 Отгружена';
+        if (shipment.completed) return '📦 Готова';
+        return '🔄 В работе';
+    },
+
+    formatDate(dateStr) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+        return dateStr;
     },
 
     startNewShipment() {
@@ -386,6 +673,12 @@ const ShipmentsModule = {
                 return;
             }
 
+            // 2. Проверяем, что отгрузка не завершена
+            if (shipment.completed) {
+                alert('Нельзя редактировать готовую отгрузку');
+                return;
+            }
+
             // 3. Показываем редактор
             const editor = document.getElementById('shipment-editor');
             if (!editor) {
@@ -445,8 +738,25 @@ const ShipmentsModule = {
         }
     },
     async deleteShipment(shipmentId) {
-        if (!confirm('Удалить отгрузку?')) return;
         try {
+            // Получаем данные отгрузки для проверки статуса
+            const shipment = await API.getShipmentById(shipmentId);
+            if (!shipment) {
+                alert('Отгрузка не найдена');
+                return;
+            }
+
+            // Проверяем статус
+            if (shipment.done) {
+                alert('❌ Нельзя удалить завершённую отгрузку');
+                return;
+            }
+
+            if (shipment.completed) {
+                alert('❌ Нельзя удалить готовую отгрузку');
+                return;
+            }
+            if (!confirm('Удалить отгрузку?')) return;
             await API.deleteShipment(shipmentId);
             await this.loadShipments();
         } catch (error) {
@@ -454,7 +764,6 @@ const ShipmentsModule = {
             alert('Ошибка удаления: ' + error.message);
         }
     },
-
     closeEditor() {
         this.shipmentItems = [];
         this.editingShipmentId = null;
