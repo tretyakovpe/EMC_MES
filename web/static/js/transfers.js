@@ -37,6 +37,8 @@
             inputQty.value = 1;
             inputWho.value = '';
             bsModal.show();
+            // autofocus material input for quick scanning
+            setTimeout(() => inputMaterial.focus(), 200);
         });
 
         modalSave.addEventListener('click', onModalSave);
@@ -47,7 +49,7 @@
     }
 
     function loadWarehouses() {
-        // Попытка получить список складов — если API отсутствует, оставим один вариант
+        // Попытка получить спис��к складов — если API отсутствует, оставим один вариант
         fetch('/api/warehouses')
             .then(res => { if (!res.ok) throw new Error('no'); return res.json(); })
             .then(data => {
@@ -89,31 +91,31 @@
         if (!Array.isArray(transfers)) transfers = [];
 
         if (transfers.length === 0) {
-            listEl.innerHTML = `<div class="text-muted p-3">Нет за��вок</div>`;
+            listEl.innerHTML = `<div class="text-muted p-3">Нет заявок</div>`;
             return;
         }
 
         transfers.forEach(t => {
-            const shipped = t.ShippedQuantity != null ? t.ShippedQuantity : (t.shipped || 0);
-            const planned = t.Quantity || t.planned || 0;
+            const shipped = t.shippedQuantity != null ? t.shippedQuantity : (t.shipped || t.ShippedQuantity || 0);
+            const planned = t.quantity || t.Quantity || t.planned || 0;
             const deviation = shipped - planned;
 
             const item = document.createElement('a');
             item.className = 'list-group-item list-group-item-action transfer-row';
             item.href = '#';
-            item.dataset.id = t.TransferID || t.transferId || t.id;
+            item.dataset.id = t.transferId || t.TransferID || t.id;
 
             const badge = deviation > 0 ? `<span class="badge bg-danger ms-2">+${deviation}</span>` : (deviation < 0 ? `<span class="badge bg-success ms-2">${deviation}</span>` : `<span class="badge bg-secondary ms-2">0</span>`);
 
             item.innerHTML = `<div class="d-flex w-100 justify-content-between align-items-center">
                 <div>
-                    <div><strong>${escapeHtml(t.TransferNumber || t.transferNumber || `#${item.dataset.id}`)}</strong></div>
-                    <div class="small text-muted">${escapeHtml(t.MaterialCode || t.materialCode || t.MaterialID || t.materialId || '')}</div>
+                    <div><strong>${escapeHtml(t.transferNumber || t.TransferNumber || `#${item.dataset.id}`)}</strong></div>
+                    <div class="small text-muted">${escapeHtml(t.materialCode || t.MaterialCode || t.materialId || t.MaterialID || '')}</div>
                 </div>
                 <div class="text-end">
                     <div class="small">${planned} шт.</div>
                     <div class="small">${shipped}/${planned} ${badge}</div>
-                    <div class="small text-muted">${escapeHtml(t.Status || t.status || '')}</div>
+                    <div class="small text-muted">${escapeHtml(t.status || t.Status || '')}</div>
                 </div>
             </div>`;
 
@@ -129,8 +131,8 @@
     }
 
     async function selectTransfer(id) {
-        selectedTransfer = transfers.find(t => String((t.TransferID || t.transferId || t.id)) === String(id)) || { TransferID: id };
-        await loadTransferDetails(selectedTransfer.TransferID || selectedTransfer.transferId || selectedTransfer.id);
+        selectedTransfer = transfers.find(t => String((t.transferId || t.TransferID || t.id)) === String(id)) || { transferId: id };
+        await loadTransferDetails(selectedTransfer.transferId || selectedTransfer.TransferID || selectedTransfer.id);
     }
 
     function showDetailsEmpty() {
@@ -143,6 +145,22 @@
         detailsEmptyEl.classList.add('d-none');
     }
 
+    async function tryFetchJson(url, options) {
+        try {
+            const res = await fetch(url, options);
+            if (!res.ok) return { ok: false };
+            const text = await res.text();
+            // try parse JSON safely
+            try {
+                return { ok: true, json: JSON.parse(text) };
+            } catch (err) {
+                return { ok: false };
+            }
+        } catch (err) {
+            return { ok: false };
+        }
+    }
+
     async function loadTransferDetails(id) {
         if (!id) return;
         // Try to get /api/transfers/{id}
@@ -153,28 +171,56 @@
         } catch (err) { /* ignore */ }
 
         // If API didn't return detailed transfer, find in list
-        if (!transfer) transfer = transfers.find(t => String((t.TransferID || t.transferId || t.id)) === String(id)) || { TransferID: id };
+        if (!transfer) transfer = transfers.find(t => String((t.transferId || t.TransferID || t.id)) === String(id)) || { transferId: id };
 
-        // Get shipments — try multiple endpoints
+        // Get shipments — try multiple endpoints in order
         let shipments = [];
         try {
-            // preferred: /api/transfers/{id}/shipments
-            let res = await fetch(`/api/transfers/${id}/shipments`);
-            if (!res.ok) {
-                // fallback: /api/transfer_shipments?transferId=
-                res = await fetch(`/api/transfer_shipments?transferId=${encodeURIComponent(id)}`);
+            // 1) /api/transfers/{id}/shipments
+            let attempt = await tryFetchJson(`/api/transfers/${id}/shipments`);
+            if (attempt.ok) shipments = attempt.json;
+            else {
+                // 2) /api/transfer-shipments/{id}
+                attempt = await tryFetchJson(`/api/transfer-shipments/${id}`);
+                if (attempt.ok) shipments = attempt.json;
+                else {
+                    // 3) /api/transfer-shipments?transferId={id} (legacy)
+                    attempt = await tryFetchJson(`/api/transfer-shipments?transferId=${encodeURIComponent(id)}`);
+                    if (attempt.ok) shipments = attempt.json;
+                    else shipments = [];
+                }
             }
-            if (res.ok) shipments = await res.json();
+
+            // Normalize response to array
+            if (!Array.isArray(shipments)) {
+                if (Array.isArray(shipments.data)) shipments = shipments.data;
+                else if (Array.isArray(shipments.items)) shipments = shipments.items;
+                else if (Array.isArray(shipments.shipments)) shipments = shipments.shipments;
+                else if (Array.isArray(shipments.result)) shipments = shipments.result;
+                else if (shipments && typeof shipments === 'object') {
+                    const vals = Object.values(shipments).filter(v => Array.isArray(v));
+                    if (vals.length > 0) shipments = vals[0];
+                    else shipments = [];
+                } else {
+                    shipments = [];
+                }
+            }
         } catch (err) {
             console.warn('shipments load failed', err);
+            shipments = [];
         }
 
-        const planned = transfer.Quantity || transfer.planned || 0;
-        const shipped = transfer.ShippedQuantity != null ? transfer.ShippedQuantity : (shipments.reduce((s, x) => s + (x.Quantity || x.quantity || 0), 0));
+        const planned = transfer.quantity || transfer.Quantity || transfer.planned || 0;
+        // shipped: if transfer has explicit shippedQuantity use it; otherwise sum shipments safely
+        let shipped = 0;
+        if (transfer.shippedQuantity != null) shipped = transfer.shippedQuantity;
+        else if (transfer.ShippedQuantity != null) shipped = transfer.ShippedQuantity;
+        else if (Array.isArray(shipments)) shipped = shipments.reduce((s, x) => s + (Number(x.quantity || x.Quantity || x.qty || 0) || 0), 0);
+        else shipped = 0;
         const deviation = shipped - planned;
 
-        detailsTitle.textContent = `Заказ: ${transfer.TransferNumber || transfer.transferNumber || ('#' + id)}`;
-        detailsMaterial.textContent = transfer.MaterialCode || transfer.materialCode || transfer.MaterialID || transfer.materialId || '';
+        detailsTitle.textContent = `Заказ: ${transfer.transferNumber || transfer.TransferNumber || ('#' + id)}`;
+        detailsMaterial.textContent = transfer.materialCode || transfer.MaterialCode || transfer.materialId || transfer.MaterialID || '';
         detailsPlanned.textContent = planned + ' шт.';
         detailsShipped.textContent = shipped + ' шт.';
 
@@ -190,16 +236,22 @@
             detailsDeviation.textContent = '0';
         }
 
-        // Render shipments
+        // Render shipments (defensive)
         shipmentsTbody.innerHTML = '';
-        shipments.forEach(s => {
+        if (Array.isArray(shipments) && shipments.length > 0) {
+            shipments.forEach(s => {
+                const tr = document.createElement('tr');
+                const date = formatDate(s.createdAt || s.CreatedAt || s.created || s.created_at || s.Created_at);
+                const qty = s.quantity || s.Quantity || s.qty || 0;
+                const who = s.createdBy || s.CreatedBy || s.created_by || s.createdByName || '';
+                tr.innerHTML = `<td>${escapeHtml(date)}</td><td>${qty} шт.</td><td>${escapeHtml(who)}</td>`;
+                shipmentsTbody.appendChild(tr);
+            });
+        } else {
             const tr = document.createElement('tr');
-            const date = formatDate(s.CreatedAt || s.createdAt || s.CreatedAt || s.created || s.created_at);
-            const qty = s.Quantity || s.quantity || 0;
-            const who = s.CreatedBy || s.createdBy || s.created_by || '';
-            tr.innerHTML = `<td>${escapeHtml(date)}</td><td>${qty} шт.</td><td>${escapeHtml(who)}</td>`;
+            tr.innerHTML = `<td colspan="3" class="text-muted">Нет записей об отгрузках</td>`;
             shipmentsTbody.appendChild(tr);
-        });
+        }
 
         // Show/hide Complete button
         btnCompleteTransfer.disabled = !(deviation >= 0);
@@ -213,7 +265,7 @@
         const qty = parseInt(inputQty.value, 10);
         const who = inputWho.value.trim() || 'Неизвестно';
 
-        if (!selectedTransfer || !selectedTransfer.TransferID && !selectedTransfer.transferId && !selectedTransfer.id) {
+        if (!selectedTransfer || !selectedTransfer.transferId && !selectedTransfer.TransferID && !selectedTransfer.id) {
             modalError.textContent = 'Не выбрана заявка';
             modalError.classList.remove('d-none');
             return;
@@ -230,25 +282,26 @@
         }
 
         const payload = {
-            TransferID: selectedTransfer.TransferID || selectedTransfer.transferId || selectedTransfer.id,
-            MaterialCode: code,
-            Quantity: qty,
-            CreatedBy: who
+            transferId: selectedTransfer.transferId || selectedTransfer.TransferID || selectedTransfer.id,
+            materialCode: code,
+            quantity: qty,
+            createdBy: who
         };
 
         try {
-            // try POST to /api/transfer_shipments
-            let res = await fetch('/api/transfer_shipments', {
+            // try POST to /api/transfer-shipments (server expects JSON with transferId/materialId or materialCode depending on implementation)
+            let res = await fetch('/api/transfer-shipments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+
             if (!res.ok) {
                 // fallback: /api/transfers/{id}/shipments
-                res = await fetch(`/api/transfers/${payload.TransferID}/shipments`, {
+                res = await fetch(`/api/transfers/${payload.transferId}/shipments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ MaterialCode: code, Quantity: qty, CreatedBy: who })
+                    body: JSON.stringify({ materialCode: code, quantity: qty, createdBy: who })
                 });
             }
 
@@ -258,7 +311,7 @@
             }
 
             await loadTransfers();
-            await selectTransfer(payload.TransferID);
+            await selectTransfer(payload.transferId);
             bsModal.hide();
         } catch (err) {
             console.error(err);
@@ -269,18 +322,18 @@
 
     async function onCompleteTransfer() {
         if (!selectedTransfer) return;
-        const id = selectedTransfer.TransferID || selectedTransfer.transferId || selectedTransfer.id;
+        const id = selectedTransfer.transferId || selectedTransfer.TransferID || selectedTransfer.id;
         if (!confirm('Завершить перемещение? Статус станет "Завершена".')) return;
 
         try {
             // try POST /api/transfers/{id}/complete
             let res = await fetch(`/api/transfers/${id}/complete`, { method: 'POST' });
             if (!res.ok) {
-                // fallback: PUT /api/transfers/{id} {status: 'Завершена'}
+                // fallback: PUT /api/transfers/{id} {status: 'Завер��ена'}
                 res = await fetch(`/api/transfers/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Status: 'Завершена' })
+                    body: JSON.stringify({ status: 'Завершена' })
                 });
             }
             if (!res.ok) throw new Error('Не удалось завершить перемещение');
