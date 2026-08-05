@@ -27,153 +27,142 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/production", serveProduction)
 	mux.HandleFunc("/logistics", serveLogistics)
 	mux.HandleFunc("/quality", serveQuality)
-	mux.HandleFunc("/table-view", serveTableView) // без .html
+	mux.HandleFunc("/table-view", serveTableView)
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/images/favicon.ico", http.StatusMovedPermanently)
 	})
+
 	// ==================== ВЕБСОКЕТ ====================
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(globalHub, w, r)
 	})
 
 	// ==================== API МАРШРУТЫ ====================
+	// Боксы (коробки)
+	mux.HandleFunc("/api/boxes", handleBoxes)
+	mux.HandleFunc("/api/boxes/", handleBoxByID)
+	mux.HandleFunc("/api/boxes/stats", GetBoxesStats)
+	mux.HandleFunc("/api/boxes/view/", handleViewLabel)
+
+	// События
+	mux.HandleFunc("/api/events", handleEvent)
+
 	// Линии
 	mux.HandleFunc("/api/lines", handleLines)
-	mux.HandleFunc("/api/lines/status", handleLineStatus)
 	mux.HandleFunc("/api/lines/", handleLineByID)
+	mux.HandleFunc("/api/lines/status", handleLineStatus)
 
-	// Статистика линий (отдельный эндпоинт)
+	// Статистика линий
 	mux.HandleFunc("/api/linestats", handleGetAllLinesStats)
 	mux.HandleFunc("/api/linestats/", handleGetLineStats)
 
 	// Материалы
 	mux.HandleFunc("/api/materials", handleMaterials)
-	mux.HandleFunc("/api/materials/code", handleGetMaterialByCode)
 	mux.HandleFunc("/api/materials/", handleMaterialByID)
-	// ==================== СКЛАДЫ ====================
-	mux.HandleFunc("/api/warehouses", handleWarehouses)
-	mux.HandleFunc("/api/warehouses/", handleWarehouseByID)
-
-	// ==================== ПЕРЕМЕЩЕНИЯ ====================
-	mux.HandleFunc("/api/transfers", handleTransfers)
-	mux.HandleFunc("/api/transfers/", handleTransferByID)
-
-	// Коробки
-	mux.HandleFunc("/api/boxes", handleBoxes)
-	mux.HandleFunc("/api/boxes/stats", GetBoxesStats)
-	// Печать бирки
-	mux.HandleFunc("/api/boxes/view/", handleViewLabel)
-	mux.HandleFunc("/api/boxes/", handleBoxByID)
+	mux.HandleFunc("/api/materials/code", handleGetMaterialByCode)
 
 	// Планы
 	mux.HandleFunc("/api/plans", handlePlans)
-	mux.HandleFunc("/api/plans/volumes", handlePlannedVolumes)
-	mux.HandleFunc("/api/plans/status", handleUpdatePlansStatus)
-	mux.HandleFunc("/api/plans/month", handleGetPlansByMonth)
-	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
 	mux.HandleFunc("/api/plans/", handlePlanByID)
+	mux.HandleFunc("/api/plans/from-excel", handlePlansFromExcel)
+	mux.HandleFunc("/api/plans/month", handleGetPlansByMonth)
+	mux.HandleFunc("/api/plans/status", handleUpdatePlansStatus)
+	mux.HandleFunc("/api/plans/volumes", handlePlannedVolumes)
+
+	// Сканирование
+	RegisterScanRoutes(mux, globalHub)
+
+	// Отгрузки
+	mux.HandleFunc("/api/shipments", handleShipments)
+	mux.HandleFunc("/api/shipments/", handleShipmentsByID)
+	mux.HandleFunc("/api/shipments/parse-clipboard", handleParseClipboard)
+
+	// Экран отгрузок
+	mux.HandleFunc("/api/shipping-screen", handleShippingScreen)
 
 	// Сменное задание
 	mux.HandleFunc("/api/shiftplan/", handleShiftPlan)
 
-	// Отгрузки
-	// Парсинг буфера обмена для отгрузок
-	mux.HandleFunc("/api/shipments/parse-clipboard", handleParseClipboard)
-	mux.HandleFunc("/api/shipments", handleShipments) // GET, POST
+	// Статистика
+	mux.HandleFunc("/api/stats", handleStats)
+	mux.HandleFunc("/api/stats/production", handleStatsProduction)
+	mux.HandleFunc("/api/stats/summary", handleStatsSummary)
 
-	mux.HandleFunc("/api/shipments/", func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/api/shipments/")
+	// Статистика (старая версия)
+	mux.HandleFunc("/api/statistics/bad-parts", handleGetBadPartsStats)
+	mux.HandleFunc("/api/statistics/boxes", handleGetBoxesStats)
+	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 
-		// Обработка /api/shipments/{id}/complete
-		if strings.HasSuffix(path, "/complete") {
-			idStr := strings.TrimSuffix(path, "/complete")
-			shipmentID, err := strconv.Atoi(idStr)
-			if err == nil {
-				handleCompleteShipment(w, r, shipmentID)
-				return
-			}
-		}
+	// Перемещения
+	mux.HandleFunc("/api/transfers", handleTransfers)
+	mux.HandleFunc("/api/transfers/", handleTransferByID)
 
-		// Обработка /api/shipments/{id}/scanned
-		if strings.HasSuffix(path, "/scanned") {
-			idStr := strings.TrimSuffix(path, "/scanned")
-			shipmentID, err := strconv.Atoi(idStr)
-			if err == nil {
-				handleGetScannedBoxes(w, r, shipmentID)
-				return
-			}
-		}
-
-		// Обработка /api/shipments/{id} - просмотр/удаление/обновление
-		if len(path) > 0 && path != "" {
-			shipmentID, err := strconv.Atoi(path)
-			if err == nil {
-				switch r.Method {
-				case http.MethodGet:
-					handleGetShipmentByID(w, r, shipmentID)
-				case http.MethodDelete:
-					handleDeleteShipment(w, r, shipmentID)
-				case http.MethodPut:
-					handleUpdateShipment(w, r, shipmentID)
-				default:
-					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-				}
-				return
-			}
-		}
-
-		http.NotFound(w, r)
-	})
-
-	// Экран отгрузок (HTML страница)
-	mux.HandleFunc("/shipping-screen", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		http.ServeFile(w, r, "./web/static/shipping-screen.html")
-	})
-
-	// API для экрана отгрузок
-	mux.HandleFunc("/api/shipping-screen", handleShippingScreen)
+	// Перемещения — фактические отгрузки
+	mux.HandleFunc("/api/transfer-shipments", handleTransferShipments)
+	mux.HandleFunc("/api/transfer-shipments/", handleTransferShipmentsByID)
 
 	// Видео стрим
 	mux.HandleFunc("/api/video/stream", handleVideoStream)
 
-	// Статистика
-	mux.HandleFunc("/api/stats", handleStats)
-	mux.HandleFunc("/api/stats/summary", handleStatsSummary)
-	mux.HandleFunc("/api/stats/production", handleStatsProduction)
-
-	// Статистика (старая версия)
-	mux.HandleFunc("/api/statistics/boxes", handleGetBoxesStats)
-	mux.HandleFunc("/api/statistics/bad-parts", handleGetBadPartsStats)
-	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
+	// Склады
+	mux.HandleFunc("/api/warehouses", handleWarehouses)
+	mux.HandleFunc("/api/warehouses/", handleWarehouseByID)
 
 	// Склад ГП
 	mux.HandleFunc("/api/warehouse/stacks", handleWarehouseStacks)
 
-	// Управление складами
-	mux.HandleFunc("/warehouses", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		http.ServeFile(w, r, "./web/static/warehouses.html")
-	})
-
-	// Управление материалами
+	// ==================== HTML СТРАНИЦЫ ДЛЯ УПРАВЛЕНИЯ ====================
 	mux.HandleFunc("/materials", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeFile(w, r, "./web/static/materials.html")
 	})
 
-	// События
-	mux.HandleFunc("/api/events", handleEvent)
-
-	// Сканирование
-	RegisterScanRoutes(mux, globalHub)
-
-	// Специальный маршрут для shiftplan (должен быть после всех API)
 	mux.HandleFunc("/production/shiftplan/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeFile(w, r, "./web/static/shiftplan.html")
 	})
+
+	mux.HandleFunc("/shipping-screen", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/shipping-screen.html")
+	})
+
+	mux.HandleFunc("/warehouses", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/warehouses.html")
+	})
+
 	return mux
+}
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+
+// serveIndex возвращает главную страницу
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "./web/static/index.html")
+}
+
+// serveLogistics возвращает страницу логистики
+func serveLogistics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "./web/static/logistics.html")
+}
+
+// serveProduction возвращает страницу производства
+func serveProduction(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "./web/static/production.html")
+}
+
+// serveQuality возвращает страницу качества
+func serveQuality(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "./web/static/quality.html")
 }
 
 // serveStatic раздаёт статические файлы
@@ -229,32 +218,81 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, fullPath)
 }
 
-// HTML страницы
-func serveIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "./web/static/index.html")
-}
-
-func serveProduction(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "./web/static/production.html")
-}
-
-func serveLogistics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "./web/static/logistics.html")
-}
-
-func serveQuality(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "./web/static/quality.html")
-}
-
+// serveTableView возвращает страницу табличного представления
 func serveTableView(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeFile(w, r, "./web/static/table-view.html")
+}
+
+// ==================== ОБРАБОТЧИКИ МАРШРУТОВ С ПАРАМЕТРАМИ ====================
+
+// handleShipmentsByID обрабатывает запросы к /api/shipments/{id} и его подпути
+func handleShipmentsByID(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/shipments/")
+
+	// Обработка /api/shipments/{id}/complete
+	if strings.HasSuffix(path, "/complete") {
+		idStr := strings.TrimSuffix(path, "/complete")
+		shipmentID, err := strconv.Atoi(idStr)
+		if err == nil {
+			handleCompleteShipment(w, r, shipmentID)
+			return
+		}
+	}
+
+	// Обработка /api/shipments/{id}/scanned
+	if strings.HasSuffix(path, "/scanned") {
+		idStr := strings.TrimSuffix(path, "/scanned")
+		shipmentID, err := strconv.Atoi(idStr)
+		if err == nil {
+			handleGetScannedBoxes(w, r, shipmentID)
+			return
+		}
+	}
+
+	// Обработка /api/shipments/{id} - просмотр/удаление/обновление
+	if len(path) > 0 && path != "" {
+		shipmentID, err := strconv.Atoi(path)
+		if err == nil {
+			switch r.Method {
+			case http.MethodGet:
+				handleGetShipmentByID(w, r, shipmentID)
+			case http.MethodDelete:
+				handleDeleteShipment(w, r, shipmentID)
+			case http.MethodPut:
+				handleUpdateShipment(w, r, shipmentID)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+			return
+		}
+	}
+
+	http.NotFound(w, r)
+}
+
+// handleTransferShipmentsByID обрабатывает запросы к /api/transfer-shipments/{id}
+func handleTransferShipmentsByID(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/transfer-shipments/")
+
+	// /api/transfer-shipments/{id}/grouped
+	if strings.HasSuffix(path, "/grouped") {
+		handleGetTransferShipmentsGrouped(w, r)
+		return
+	}
+
+	// /api/transfer-shipments/{id} - получение или удаление
+	if len(path) > 0 && path != "" {
+		switch r.Method {
+		case http.MethodGet:
+			handleGetTransferShipments(w, r)
+		case http.MethodDelete:
+			handleDeleteTransferShipment(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+		return
+	}
+
+	http.NotFound(w, r)
 }
