@@ -132,6 +132,12 @@ func SetupRoutes() *http.ServeMux {
 		http.ServeFile(w, r, "./web/static/warehouses.html")
 	})
 
+	// СТРАНИЦА ПЕРЕМЕЩЕНИЙ (для кладовщика)
+	mux.HandleFunc("/transfers", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "./web/static/transfers.html")
+	})
+
 	return mux
 }
 
