@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Перемещения — MES</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/common.css">
+    <style>
+        .screen {
+            padding: 16px;
+        }
+        .transfers-list {
+            height: calc(100vh - 120px);
+            overflow: auto;
+        }
+        .transfer-row {
+            cursor: pointer;
+        }
+        .transfer-row.active {
+            background: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+        }
+        .details-panel {
+            border-left: 1px solid #e9ecef;
+            height: calc(100vh - 120px);
+            overflow: auto;
+            padding: 16px;
+        }
+        .badge-deviation-positive { background: #dc3545; }
+        .badge-deviation-negative { background: #198754; }
+    </style>
+</head>
+<body>
+<nav class="navbar bg-light px-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <img src="/static/images/logo.png" alt="Logo" height="28">
+        </a>
+        <div class="d-flex align-items-center">
+            <h5 class="mb-0">📦 Перемещения — Для сборки</h5>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid screen">
+    <div class="row g-0">
+        <div class="col-5 px-3">
+            <div class="mb-2 d-flex gap-2">
+                <select id="filter-warehouse" class="form-select form-select-sm" style="width:220px">
+                    <option value="">Все склады (отправитель)</option>
+                </select>
+                <input id="filter-date" type="date" class="form-control form-control-sm" style="width:180px">
+                <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">Обновить</button>
+            </div>
+
+            <div class="list-group transfers-list" id="transfers-list" role="tablist">
+                <!-- динамические строки -->
+            </div>
+        </div>
+
+        <div class="col-7 details-panel" id="details-panel">
+            <div id="details-empty" class="text-muted">Выберите заявку слева чтобы открыть детали</div>
+            <div id="details" class="d-none">
+                <h5 id="details-title"></h5>
+                <div class="mb-3">
+                    <div>Материал: <strong id="details-material"></strong></div>
+                    <div>Запланировано: <strong id="details-planned"></strong></div>
+                    <div>Отгружено: <strong id="details-shipped"></strong></div>
+                    <div>Отклонение: <span id="details-deviation" class="badge"></span></div>
+                </div>
+
+                <hr>
+                <h6>История отгрузок</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Количество</th>
+                            <th>Кто</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shipments-tbody">
+                    </tbody>
+                </table>
+
+                <div class="mt-3 d-flex gap-2">
+                    <button id="btn-add-shipment" class="btn btn-sm btn-primary">➕ Добавить отгрузку</button>
+                    <button id="btn-complete-transfer" class="btn btn-sm btn-success">✅ Завершить перемещение</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: add shipment -->
+<div class="modal" tabindex="-1" id="modal-add-shipment">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Добавить отгрузку</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+            <label class="form-label">Материал (код)</label>
+            <input id="input-material-code" class="form-control form-control-sm" placeholder="LD1100-101">
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Количество (шт.)</label>
+            <input id="input-qty" type="number" class="form-control form-control-sm" min="1" value="1">
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Кто</label>
+            <input id="input-who" class="form-control form-control-sm" placeholder="Иванов И." value="">
+        </div>
+        <div id="modal-error" class="text-danger small d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="modal-save" class="btn btn-primary btn-sm">Записать</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/core/api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/transfers.js"></script>
+</body>
+</html>
