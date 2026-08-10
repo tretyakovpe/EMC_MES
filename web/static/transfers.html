@@ -4,166 +4,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Перемещения</title>
+    <title>Сборка заказов на перемещение</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/transfers-warehouse.css">
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/transfers.css">
 </head>
 
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-dark bg-dark px-4">
+    <nav class="navbar px-4">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">
                 <img src="/static/images/logo.png" alt="Company Logo" height="32" class="d-inline-block align-top">
-                <span class="ms-2 d-none d-sm-inline">📦 Перемещения</span>
             </a>
+            <span class="navbar-brand">📦 СБОРКА ЗАКАЗОВ</span>
         </div>
     </nav>
 
-    <!-- Контент -->
-    <div class="transfers-container">
-        <div class="transfers-layout">
-            <!-- Левая панель: список заказов -->
-            <div class="transfers-list-panel">
-                <div class="panel-header">
-                    <h3>📦 Заказы на перемещение</h3>
-                    <div class="panel-actions">
-                        <button id="refresh-btn" class="btn-secondary">🔄</button>
-                        <button id="create-transfer-btn" class="btn-primary">➕ Создать заказ</button>
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <!-- Левая колонка: список заказов -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="m-0">📋 Заказы</h6>
+                            <button class="btn btn-outline-secondary btn-sm" id="refresh-btn">🔄</button>
+                        </div>
                     </div>
-                </div>
-                <div class="filters">
-                    <div class="form-group">
-                        <label>Дата:</label>
-                        <input type="date" id="filter-date" class="form-input">
+                    <div class="card-body p-2">
+                        <!-- Фильтры -->
+                        <div class="filters-bar mb-2">
+                            <div class="row g-1">
+                                <div class="col-12">
+                                    <select class="form-select form-select-sm" id="filter-status">
+                                        <option value="">Все статусы</option>
+                                        <option value="Draft">Создан</option>
+                                        <option value="InProgress" selected>В работе</option>
+                                        <option value="Ready">Готов</option>
+                                        <option value="Completed">Завершен</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select class="form-select form-select-sm" id="filter-from-warehouse">
+                                        <option value="">Со склада</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select class="form-select form-select-sm" id="filter-to-warehouse">
+                                        <option value="">На склад</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="filter-from-date">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="filter-to-date">
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary btn-sm w-100" id="filter-apply-btn">Применить
+                                        фильтры</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Список заказов -->
+                        <div id="transfers-list" class="orders-list">
+                            <div class="text-center text-muted py-4">Загрузка...</div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Склад откуда:</label>
-                        <select id="filter-warehouse" class="form-input">
-                            <option value="">Все склады</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="transfers-grid" id="transfers-list">
-                    <div class="loading">Загрузка...</div>
                 </div>
             </div>
 
-            <!-- Правая панель: детали заказа -->
-            <div class="transfer-details-panel" id="details-panel">
-                <div class="details-empty" id="details-empty">
-                    <div class="empty-icon">📋</div>
-                    <p>Выберите заказ для просмотра</p>
-                </div>
+            <!-- Правая колонка: детали заказа -->
+            <div class="col-md-8">
+                <div class="card" id="details-panel">
+                    <div class="card-body">
+                        <!-- Пустое состояние -->
+                        <div id="details-empty" class="text-center py-5">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📦</div>
+                            <h5>Выберите заказ</h5>
+                            <p class="text-muted small">Нажмите на заказ в списке слева</p>
+                        </div>
 
-                <div class="details-content" id="details-content" style="display: none;">
-                    <div class="details-header">
-                        <h3 id="details-title">Заказ №123</h3>
-                        <span class="details-status" id="details-status">🔄 В работе</span>
-                    </div>
+                        <!-- Детали -->
+                        <div id="details-content" style="display: none;">
+                            <div class="details-header">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h4 id="details-title">Заказ №0</h4>
+                                        <div>
+                                            <span class="badge" id="details-status">Статус</span>
+                                            <span class="ms-2 text-muted small" id="details-created">Создан: --</span>
+                                            <span class="ms-2 text-muted small" id="details-started">Начал: --</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-success btn-sm me-1" id="btn-start-order">▶️ Начать
+                                            сборку</button>
+                                        <button class="btn btn-primary btn-sm" id="btn-add-shipment">➕ Добавить
+                                            отгрузку</button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2 small">
+                                    <div class="col-md-4">
+                                        <span class="text-muted">Со склада:</span>
+                                        <strong id="details-from">--</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <span class="text-muted">На склад:</span>
+                                        <strong id="details-to">--</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <span class="text-muted">Плановая дата:</span>
+                                        <strong id="details-planned">--</strong>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="details-info">
-                        <div class="info-row">
-                            <span class="info-label">🏢 Откуда:</span>
-                            <span id="details-from">Склад А</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">🏢 Куда:</span>
-                            <span id="details-to">Склад Б</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">📅 Плановая дата:</span>
-                            <span id="details-planned">2026-08-06</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">📅 Создан:</span>
-                            <span id="details-created">2026-08-05 14:30</span>
-                        </div>
-                    </div>
+                            <!-- Прогресс -->
+                            <div class="progress-container mt-3">
+                                <div class="d-flex justify-content-between small">
+                                    <span>Прогресс отгрузки</span>
+                                    <span id="progress-text">0%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%">
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="details-section">
-                        <h4>📦 Материалы</h4>
-                        <div class="table-wrapper">
-                            <table class="details-table" id="items-table">
-                                <thead>
-                                    <tr>
-                                        <th>Код</th>
-                                        <th>Описание</th>
-                                        <th>План</th>
-                                        <th>Отгружено</th>
-                                        <th>Остаток</th>
-                                        <th>Статус</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="items-tbody">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                            <!-- Материалы -->
+                            <div class="details-section mt-3">
+                                <h6 class="section-title">📋 Материалы</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Код</th>
+                                                <th>Описание</th>
+                                                <th class="text-center">План</th>
+                                                <th class="text-center">Отгружено</th>
+                                                <th class="text-center">Остаток</th>
+                                                <th class="text-center">Статус</th>
+                                                <th class="text-center">Прогресс</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="items-tbody">
+                                            <tr>
+                                                <td colspan="7" class="text-muted text-center">Нет материалов</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
 
-                    <div class="details-section">
-                        <h4>📋 История отгрузок</h4>
-                        <div class="table-wrapper">
-                            <table class="details-table" id="shipments-table">
-                                <thead>
-                                    <tr>
-                                        <th>Дата</th>
-                                        <th>Материал</th>
-                                        <th>Количество</th>
-                                        <th>Кто</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="shipments-tbody">
-                                </tbody>
-                            </table>
+                            <!-- История отгрузок -->
+                            <div class="details-section mt-3">
+                                <h6 class="section-title">📤 История отгрузок</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Дата</th>
+                                                <th>Материал</th>
+                                                <th class="text-center">Количество</th>
+                                                <th>Кто</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="shipments-tbody">
+                                            <tr>
+                                                <td colspan="4" class="text-muted text-center">Нет отгрузок</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="details-actions">
-                        <button id="btn-add-shipment" class="btn-secondary">➕ Добавить отгрузку</button>
-                        <button id="btn-complete-order" class="btn-success" disabled>✅ Завершить заказ</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно для добавления отгрузки -->
-    <div class="modal" id="modal-add-shipment" style="display: none;">
+    <!-- Модальное окно добавления отгрузки -->
+    <div class="modal-overlay" id="modal-add-shipment" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Добавить отгрузку</h3>
-                <button class="modal-close" id="modal-close">✕</button>
+                <h5 class="modal-title">➕ Добавление отгрузки</h5>
+                <button type="button" class="modal-close" id="modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="modal-error" class="modal-error" style="display: none;"></div>
+                <div id="modal-error" class="alert alert-danger" style="display: none;"></div>
 
-                <div class="form-group">
-                    <label>Материал:</label>
-                    <select id="input-material-select" class="form-input">
-                    </select>
-                    <input type="text" id="input-material-code" class="form-input" placeholder="Введите код материала"
-                        style="display: none;">
+                <div class="mb-3">
+                    <label class="form-label">Код материала</label>
+                    <input type="text" class="form-control" id="input-material-code" placeholder="Введите код материала"
+                        autocomplete="off">
+                    <div id="input-material-suggestions" class="suggestions-list" style="display: none;"></div>
+                    <div id="input-remaining" class="form-text text-muted"></div>
                 </div>
 
-                <div class="form-group">
-                    <label>Количество (шт):</label>
-                    <input type="number" id="input-qty" class="form-input" value="1" min="1">
+                <div class="mb-3">
+                    <label class="form-label">Количество</label>
+                    <input type="number" class="form-control" id="input-qty" value="1" min="1">
                 </div>
 
-                <div class="form-group">
-                    <label>Кто отгрузил:</label>
-                    <input type="text" id="input-who" class="form-input" placeholder="ФИО">
+                <div class="mb-3">
+                    <label class="form-label">Кто отгрузил</label>
+                    <input type="text" class="form-control" id="input-who" placeholder="Имя или табельный номер">
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-cancel" id="modal-cancel">Отмена</button>
-                <button class="btn-save" id="modal-save">💾 Сохранить</button>
+                <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
+                <button type="button" class="btn btn-primary" id="modal-save">✅ Сохранить</button>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/core/api.js"></script>
     <script src="/static/js/transfers.js"></script>
 </body>
 

@@ -1,120 +1,126 @@
-// transfers.js - Управление заказами на перемещение (новая структура)
+// ================================================================
+// transfers.js - Интерфейс кладовщика для сборки заказов
+// Версия: 2.0 (с поддержкой статусов)
+// Страница: /transfers
+// ================================================================
 
-console.log('transfers.js loaded');
+console.log('Transfers (Storekeeper) loaded');
 
 (function () {
     'use strict';
 
-    // ============================================
-    // ЭЛЕМЕНТЫ DOM
-    // ============================================
-    const listEl = document.getElementById('transfers-list');
-    const detailsPanel = document.getElementById('details-panel');
-    const detailsEmpty = document.getElementById('details-empty');
-    const detailsContent = document.getElementById('details-content');
-    const detailsTitle = document.getElementById('details-title');
-    const detailsStatus = document.getElementById('details-status');
-    const detailsFrom = document.getElementById('details-from');
-    const detailsTo = document.getElementById('details-to');
-    const detailsPlanned = document.getElementById('details-planned');
-    const detailsCreated = document.getElementById('details-created');
-    const itemsTbody = document.getElementById('items-tbody');
-    const shipmentsTbody = document.getElementById('shipments-tbody');
-    const btnAddShipment = document.getElementById('btn-add-shipment');
-    const btnCompleteOrder = document.getElementById('btn-complete-order');
-    const btnCreate = document.getElementById('create-transfer-btn');
-    const btnRefresh = document.getElementById('refresh-btn');
-    const filterDate = document.getElementById('filter-date');
-    const filterWarehouse = document.getElementById('filter-warehouse');
-
-    // Модальное окно
-    const modalEl = document.getElementById('modal-add-shipment');
-    const modalClose = document.getElementById('modal-close');
-    const modalCancel = document.getElementById('modal-cancel');
-    const modalSave = document.getElementById('modal-save');
-    const modalError = document.getElementById('modal-error');
-    const inputMaterialSelect = document.getElementById('input-material-select');
-    const inputMaterialCode = document.getElementById('input-material-code');
-    const inputQty = document.getElementById('input-qty');
-    const inputWho = document.getElementById('input-who');
-
-    // ============================================
+    // ============================================================
     // СОСТОЯНИЕ
-    // ============================================
-    let orders = [];
-    let selectedOrder = null;
-    let currentItems = [];
-    let currentShipments = [];
-    let warehouses = [];
-    let modalOpen = false;
+    // ============================================================
+    const state = {
+        orders: [],
+        selectedOrderId: null,
+        currentOrder: null,
+        isLoading: false,
+        filter: {
+            status: '', // По умолчанию показываем заказы в работе
+            fromWarehouse: '',
+            toWarehouse: '',
+            fromDate: '',
+            toDate: ''
+        },
+        warehouses: [],
+        materials: []
+    };
 
-    // ============================================
+    // ============================================================
+    // ЭЛЕМЕНТЫ DOM
+    // ============================================================
+    const elements = {};
+
+    function cacheElements() {
+        elements.list = document.getElementById('transfers-list');
+        elements.detailsPanel = document.getElementById('details-panel');
+        elements.detailsEmpty = document.getElementById('details-empty');
+        elements.detailsContent = document.getElementById('details-content');
+        elements.detailsTitle = document.getElementById('details-title');
+        elements.detailsStatus = document.getElementById('details-status');
+        elements.detailsFrom = document.getElementById('details-from');
+        elements.detailsTo = document.getElementById('details-to');
+        elements.detailsPlanned = document.getElementById('details-planned');
+        elements.detailsCreated = document.getElementById('details-created');
+        elements.detailsStarted = document.getElementById('details-started');
+        elements.itemsTbody = document.getElementById('items-tbody');
+        elements.shipmentsTbody = document.getElementById('shipments-tbody');
+        elements.progressBar = document.getElementById('progress-bar');
+        elements.progressText = document.getElementById('progress-text');
+        elements.btnStartOrder = document.getElementById('btn-start-order');
+        elements.btnAddShipment = document.getElementById('btn-add-shipment');
+        elements.btnRefresh = document.getElementById('refresh-btn');
+        elements.filterStatus = document.getElementById('filter-status');
+        elements.filterFromWarehouse = document.getElementById('filter-from-warehouse');
+        elements.filterToWarehouse = document.getElementById('filter-to-warehouse');
+        elements.filterFromDate = document.getElementById('filter-from-date');
+        elements.filterToDate = document.getElementById('filter-to-date');
+        elements.filterApply = document.getElementById('filter-apply-btn');
+
+        // Модальное окно
+        elements.modal = document.getElementById('modal-add-shipment');
+        elements.modalClose = document.getElementById('modal-close');
+        elements.modalCancel = document.getElementById('modal-cancel');
+        elements.modalSave = document.getElementById('modal-save');
+        elements.modalError = document.getElementById('modal-error');
+        elements.inputMaterialCode = document.getElementById('input-material-code');
+        elements.inputMaterialSuggestions = document.getElementById('input-material-suggestions');
+        elements.inputQty = document.getElementById('input-qty');
+        elements.inputWho = document.getElementById('input-who');
+        elements.inputRemaining = document.getElementById('input-remaining');
+    }
+
+    // ============================================================
     // ИНИЦИАЛИЗАЦИЯ
-    // ============================================
+    // ============================================================
     function init() {
-        console.log('Transfers page initialized');
+        console.log('Transfers (Storekeeper) page initialized');
+
+        // Кешируем элементы
+        cacheElements();
 
         // Устанавливаем сегодняшнюю дату в фильтр
         const today = new Date();
-        filterDate.value = today.toISOString().slice(0, 10);
+        if (elements.filterFromDate) {
+            elements.filterFromDate.value = today.toISOString().slice(0, 10);
+        }
 
-        // Загружаем склады для фильтра
+        // Загружаем справочники
         loadWarehouses();
+        loadMaterials();
 
         // Загружаем заказы
         loadOrders();
 
         // Навешиваем события
-        btnCreate.addEventListener('click', onCreateOrder);
-        btnRefresh.addEventListener('click', () => loadOrders());
-        btnAddShipment.addEventListener('click', openModal);
-        btnCompleteOrder.addEventListener('click', onCompleteOrder);
-
-        filterDate.addEventListener('change', loadOrders);
-        filterWarehouse.addEventListener('change', loadOrders);
-
-        // Модальное окно
-        modalClose.addEventListener('click', closeModal);
-        modalCancel.addEventListener('click', closeModal);
-        modalSave.addEventListener('click', onSaveShipment);
-
-        // Закрытие по клику вне модалки
-        modalEl.addEventListener('click', (e) => {
-            if (e.target === modalEl) closeModal();
-        });
-
-        // Переносим фокус при смене режима ввода материала
-        inputMaterialSelect.addEventListener('change', () => {
-            if (inputMaterialSelect.style.display !== 'none') {
-                inputMaterialSelect.focus();
-            }
-        });
-
-        // Обработка Enter в полях
-        inputQty.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') onSaveShipment();
-        });
-        inputWho.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') onSaveShipment();
-        });
+        bindEvents();
     }
 
-    // ============================================
-    // ЗАГРУЗКА ДАННЫХ
-    // ============================================
+    // ============================================================
+    // ЗАГРУЗКА СПРАВОЧНИКОВ
+    // ============================================================
     async function loadWarehouses() {
         try {
             const response = await fetch('/api/warehouses?active=true');
             if (response.ok) {
-                warehouses = await response.json();
-                console.log('Загружено складов:', warehouses.length);
+                state.warehouses = await response.json();
+                console.log('Загружено складов:', state.warehouses.length);
 
-                // Заполняем фильтр
-                warehouses.forEach(w => {
-                    const opt = document.createElement('option');
-                    opt.value = w.warehouseId;
-                    opt.textContent = `${w.code} - ${w.name}`;
-                    filterWarehouse.appendChild(opt);
+                // Заполняем фильтры
+                [elements.filterFromWarehouse, elements.filterToWarehouse].forEach(select => {
+                    if (!select) return;
+                    // Очищаем, сохраняя первый option
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                    state.warehouses.forEach(w => {
+                        const opt = document.createElement('option');
+                        opt.value = w.warehouseId;
+                        opt.textContent = `${w.code} - ${w.name}`;
+                        select.appendChild(opt);
+                    });
                 });
             }
         } catch (error) {
@@ -122,101 +128,139 @@ console.log('transfers.js loaded');
         }
     }
 
-    async function loadOrders() {
-        console.log('Loading orders...');
-        listEl.innerHTML = '<div class="loading">Загрузка...</div>';
-        selectedOrder = null;
-        showEmptyDetails();
-
-        const date = filterDate.value;
-        const warehouse = filterWarehouse.value;
-
-        let url = '/api/transfer-orders?completed=false';
-        if (date) url += `&plannedDate=${date}`;
-        if (warehouse) url += `&fromWarehouse=${warehouse}`;
-
+    async function loadMaterials() {
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Ошибка загрузки заказов');
-            orders = await response.json();
-            console.log('Загружено заказов:', orders.length);
-
-            renderOrdersList();
-
-            // Если есть заказы, выбираем первый
-            if (orders.length > 0) {
-                selectOrder(orders[0].transferOrderId);
+            const response = await fetch('/api/materials');
+            if (response.ok) {
+                state.materials = await response.json();
+                console.log('Загружено материалов:', state.materials.length);
             }
         } catch (error) {
-            console.error('Ошибка:', error);
-            listEl.innerHTML = `<div class="error-state">❌ ${error.message}</div>`;
+            console.error('Ошибка загрузки материалов:', error);
         }
     }
 
-    // ============================================
-    // ОТОБРАЖЕНИЕ СПИСКА
-    // ============================================
+    // ============================================================
+    // ЗАГРУЗКА ЗАКАЗОВ
+    // ============================================================
+    async function loadOrders() {
+        state.isLoading = true;
+        if (elements.list) {
+            elements.list.innerHTML = '<div class="text-center text-muted py-4">⏳ Загрузка...</div>';
+        }
+
+        try {
+            const params = new URLSearchParams();
+            if (state.filter.status) params.append('status', state.filter.status);
+            if (state.filter.fromWarehouse) params.append('fromWarehouse', state.filter.fromWarehouse);
+            if (state.filter.toWarehouse) params.append('toWarehouse', state.filter.toWarehouse);
+            if (state.filter.fromDate) params.append('fromDate', state.filter.fromDate);
+            if (state.filter.toDate) params.append('toDate', state.filter.toDate);
+
+            const url = `/api/transfer-orders?${params.toString()}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Ошибка загрузки заказов');
+
+            state.orders = await response.json();
+            console.log('Загружено заказов:', state.orders.length);
+
+            renderOrdersList();
+
+            // Если есть заказы и нет выбранного, выбираем первый
+            if (state.orders.length > 0 && !state.selectedOrderId) {
+                await selectOrder(state.orders[0].transferOrderId);
+            } else if (state.orders.length === 0) {
+                showEmptyDetails();
+            }
+
+        } catch (error) {
+            console.error('Ошибка:', error);
+            if (elements.list) {
+                elements.list.innerHTML = `<div class="text-center text-danger py-4">❌ ${error.message}</div>`;
+            }
+        }
+
+        state.isLoading = false;
+    }
+
+    // ============================================================
+    // ОТОБРАЖЕНИЕ СПИСКА ЗАКАЗОВ
+    // ============================================================
     function renderOrdersList() {
-        if (orders.length === 0) {
-            listEl.innerHTML = '<div class="empty-state">Нет заказов на перемещение</div>';
+        if (!elements.list) return;
+
+        if (state.orders.length === 0) {
+            elements.list.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                    <h5>Нет заказов</h5>
+                    <p class="small">Попробуйте изменить фильтры</p>
+                </div>
+            `;
             return;
         }
 
-        listEl.innerHTML = orders.map(o => {
-            const status = o.completed ? '✅ Завершён' : '🔄 В работе';
-            const statusClass = o.completed ? 'completed' : 'active';
-            const totalItems = o.details ? o.details.length : 0;
-            const totalQty = o.details ? o.details.reduce((sum, d) => sum + d.quantity, 0) : 0;
+        elements.list.innerHTML = state.orders.map(o => {
+            const statusColor = getStatusColor(o.status);
+            const statusLabel = getStatusLabel(o.status);
+            const isSelected = o.transferOrderId === state.selectedOrderId;
+            const canStart = o.status === 'Draft';
 
             return `
-                <div class="transfer-card ${statusClass} ${selectedOrder && selectedOrder.transferOrderId === o.transferOrderId ? 'selected' : ''}" 
+                <div class="transfer-card ${isSelected ? 'selected' : ''} card mb-2"
                      data-id="${o.transferOrderId}"
                      onclick="window._selectOrder(${o.transferOrderId})">
-                    <div class="transfer-header">
-                        <span class="transfer-number">№${o.number}</span>
-                        <span class="transfer-status" style="background: ${o.completed ? '#28a745' : '#ffc107'}">
-                            ${status}
-                        </span>
-                    </div>
-                    <div class="transfer-body">
-                        <div class="transfer-route">
-                            <span>🏢 ${o.fromWarehouseCode}</span>
-                            <span class="transfer-arrow">➜</span>
-                            <span>🏢 ${o.toWarehouseCode}</span>
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">№${o.number}</h6>
+                                <div class="small text-muted">
+                                    ${o.fromWarehouseCode} ➜ ${o.toWarehouseCode}
+                                </div>
+                                <div class="small text-muted">
+                                    📅 ${o.plannedDate}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="badge" style="background: ${statusColor};">${statusLabel}</span>
+                            </div>
                         </div>
-                        <div class="transfer-summary">
-                            <span>📦 ${totalItems} материалов</span>
-                            <span>📊 ${totalQty} шт.</span>
+                        <div class="mt-2">
+                            <div class="small text-muted">
+                                📦 ${o.totalItems} материалов · ${o.totalQuantity} шт.
+                            </div>
+                            <div class="progress mt-1" style="height: 6px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: ${o.progress}%; background: ${statusColor};"></div>
+                            </div>
+                            <div class="small text-muted text-end">${o.progress}%</div>
                         </div>
-                        <div class="transfer-date">
-                            📅 ${o.plannedDate || o.date}
-                        </div>
+                        ${canStart ? `
+                            <button class="btn btn-success btn-sm w-100 mt-2" 
+                                    onclick="event.stopPropagation(); window._startOrder(${o.transferOrderId})">
+                                ▶️ Начать сборку
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }).join('');
 
-        // Делаем функцию выбора глобальной для onclick
+        // Глобальные функции для onclick
         window._selectOrder = selectOrder;
+        window._startOrder = startOrder;
     }
 
-    // ============================================
+    // ============================================================
     // ВЫБОР ЗАКАЗА
-    // ============================================
+    // ============================================================
     async function selectOrder(orderId) {
         if (!orderId) return;
-        console.log('Selecting order:', orderId);
+        console.log('Выбор заказа:', orderId);
 
-        // Находим заказ в списке
-        const order = orders.find(o => o.transferOrderId === orderId);
-        if (!order) {
-            console.error('Order not found:', orderId);
-            return;
-        }
+        state.selectedOrderId = orderId;
 
-        selectedOrder = order;
-
-        // Обновляем активный класс в списке
+        // Обновляем выделение в списке
         document.querySelectorAll('.transfer-card').forEach(el => {
             el.classList.toggle('selected', parseInt(el.dataset.id) === orderId);
         });
@@ -225,23 +269,13 @@ console.log('transfers.js loaded');
         await loadOrderDetails(orderId);
     }
 
-    // ============================================
-    // ЗАГРУЗКА ДЕТАЛЕЙ ЗАКАЗА
-    // ============================================
     async function loadOrderDetails(orderId) {
         try {
             const response = await fetch(`/api/transfer-orders/${orderId}`);
             if (!response.ok) throw new Error('Ошибка загрузки деталей');
-            const order = await response.json();
 
-            // Обновляем текущие данные
-            selectedOrder = order;
-            currentItems = order.details || [];
-
-            // Получаем историю отгрузок (если есть эндпоинт)
-            await loadShipmentHistory(orderId);
-
-            renderDetails(order);
+            state.currentOrder = await response.json();
+            renderDetails(state.currentOrder);
 
         } catch (error) {
             console.error('Ошибка загрузки деталей:', error);
@@ -249,196 +283,257 @@ console.log('transfers.js loaded');
         }
     }
 
-    async function loadShipmentHistory(orderId) {
-        try {
-            // Пробуем получить историю отгрузок
-            const response = await fetch(`/api/transfer-orders/${orderId}/shipments`);
-            if (response.ok) {
-                currentShipments = await response.json();
-            } else {
-                currentShipments = [];
-            }
-        } catch (error) {
-            console.warn('Не удалось загрузить историю отгрузок:', error);
-            currentShipments = [];
-        }
-    }
-
-    // ============================================
-    // ОТОБРАЖЕНИЕ ДЕТАЛЕЙ
-    // ============================================
+    // ============================================================
+    // ОТОБРАЖЕНИЕ ДЕТАЛЕЙ ЗАКАЗА
+    // ============================================================
     function renderDetails(order) {
-        detailsEmpty.style.display = 'none';
-        detailsContent.style.display = 'block';
+        if (!elements.detailsContent) return;
 
-        const status = order.completed ? '✅ Завершён' : '🔄 В работе';
-        const statusColor = order.completed ? '#28a745' : '#ffc107';
+        elements.detailsEmpty.style.display = 'none';
+        elements.detailsContent.style.display = 'block';
 
-        detailsTitle.textContent = `Заказ №${order.number}`;
-        detailsStatus.textContent = status;
-        detailsStatus.style.background = statusColor;
-        detailsFrom.textContent = `${order.fromWarehouseCode} - ${order.fromWarehouseName}`;
-        detailsTo.textContent = `${order.toWarehouseCode} - ${order.toWarehouseName}`;
-        detailsPlanned.textContent = order.plannedDate || 'не указана';
-        detailsCreated.textContent = order.date || '';
+        // Заголовок
+        elements.detailsTitle.textContent = `Заказ №${order.number}`;
+        elements.detailsStatus.textContent = getStatusLabel(order.status);
+        elements.detailsStatus.style.background = getStatusColor(order.status);
 
-        // Рендерим материалы
+        elements.detailsFrom.textContent = `${order.fromWarehouseCode} - ${order.fromWarehouseName}`;
+        elements.detailsTo.textContent = `${order.toWarehouseCode} - ${order.toWarehouseName}`;
+        elements.detailsPlanned.textContent = order.plannedDate || 'не указана';
+        elements.detailsCreated.textContent = order.date || '';
+
+        // Кто начал сборку
+        const startedText = order.startedBy ? `${order.startedBy} (${order.startedAt || ''})` : 'не начат';
+        if (elements.detailsStarted) {
+            elements.detailsStarted.textContent = startedText;
+        }
+
+        // Прогресс
+        const total = order.details.reduce((sum, d) => sum + d.quantity, 0);
+        const shipped = order.details.reduce((sum, d) => sum + d.shippedQuantity, 0);
+        const progress = total > 0 ? Math.round((shipped / total) * 100) : 0;
+
+        if (elements.progressBar) {
+            elements.progressBar.style.width = `${progress}%`;
+            elements.progressBar.style.background = getStatusColor(order.status);
+        }
+        if (elements.progressText) {
+            elements.progressText.textContent = `${progress}% (${shipped}/${total} шт.)`;
+        }
+
+        // Кнопки
+        if (elements.btnStartOrder) {
+            elements.btnStartOrder.style.display = order.canStart ? 'inline-block' : 'none';
+        }
+        if (elements.btnAddShipment) {
+            elements.btnAddShipment.style.display = order.canAddShipment ? 'inline-block' : 'none';
+        }
+
+        // Материалы
         renderItems(order.details || []);
 
-        // Рендерим историю отгрузок
-        renderShipments(currentShipments || []);
-
-        // Обновляем кнопки
-        const allCompleted = (order.details || []).every(d => d.shippedQuantity >= d.quantity);
-        btnCompleteOrder.disabled = order.completed || !allCompleted;
-        btnCompleteOrder.textContent = order.completed ? '✅ Завершён' : '✅ Завершить заказ';
-        btnAddShipment.disabled = order.completed;
+        // Отгрузки
+        renderShipments(order.shipments || []);
     }
 
     function renderItems(items) {
+        if (!elements.itemsTbody) return;
+
         if (!items || items.length === 0) {
-            itemsTbody.innerHTML = `<tr><td colspan="6" class="text-muted">Нет материалов</td></tr>`;
+            elements.itemsTbody.innerHTML = `<tr><td colspan="7" class="text-muted text-center">Нет материалов</td></tr>`;
             return;
         }
 
-        itemsTbody.innerHTML = items.map(item => {
-            const shipped = item.shippedQuantity || 0;
-            const remaining = item.quantity - shipped;
-            let status = 'В работе';
-            let statusClass = '';
+        elements.itemsTbody.innerHTML = items.map(item => {
+            const remaining = item.remaining || 0;
+            const isDone = remaining <= 0;
+            const isPartial = item.shippedQuantity > 0 && !isDone;
 
-            if (shipped >= item.quantity) {
-                status = '✅ Готово';
-                statusClass = 'status-done';
-            } else if (shipped > 0) {
-                status = '🔄 Частично';
-                statusClass = 'status-partial';
-            } else {
-                status = '⏳ Ожидает';
-                statusClass = 'status-pending';
+            let statusText = '⏳ Ожидает';
+            let statusClass = 'text-muted';
+            if (isDone) {
+                statusText = '✅ Готово';
+                statusClass = 'text-success';
+            } else if (isPartial) {
+                statusText = '🔄 Частично';
+                statusClass = 'text-warning';
             }
 
             return `
                 <tr>
                     <td><strong>${escapeHtml(item.materialCode)}</strong></td>
                     <td>${escapeHtml(item.description || '')}</td>
-                    <td>${item.quantity}</td>
-                    <td>${shipped}</td>
-                    <td>${remaining}</td>
-                    <td><span class="${statusClass}">${status}</span></td>
+                    <td class="text-center">${item.quantity}</td>
+                    <td class="text-center">${item.shippedQuantity}</td>
+                    <td class="text-center ${remaining <= 0 ? 'text-success' : 'text-warning'}">${remaining}</td>
+                    <td class="text-center ${statusClass}">${statusText}</td>
+                    <td class="text-center">
+                        <div class="progress" style="height: 6px; width: 80px; margin: 0 auto;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: ${item.quantity > 0 ? Math.round((item.shippedQuantity / item.quantity) * 100) : 0}%; 
+                                        background: ${isDone ? '#28a745' : isPartial ? '#ffc107' : '#6c757d'};"></div>
+                        </div>
+                    </td>
                 </tr>
             `;
         }).join('');
-
-        // Обновляем селект в модалке
-        updateMaterialSelect(items);
     }
 
     function renderShipments(shipments) {
+        if (!elements.shipmentsTbody) return;
+
         if (!shipments || shipments.length === 0) {
-            shipmentsTbody.innerHTML = `<tr><td colspan="4" class="text-muted">Нет отгрузок</td></tr>`;
+            elements.shipmentsTbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center">Нет отгрузок</td></tr>`;
             return;
         }
 
-        shipmentsTbody.innerHTML = shipments.map(s => `
+        elements.shipmentsTbody.innerHTML = shipments.map(s => `
             <tr>
-                <td>${formatDate(s.createdAt || s.date)}</td>
-                <td>${escapeHtml(s.materialCode || '')}</td>
-                <td>${s.quantity || 0} шт.</td>
-                <td>${escapeHtml(s.createdBy || s.who || '')}</td>
+                <td>${s.createdAt || ''}</td>
+                <td>${escapeHtml(s.materialCode)}</td>
+                <td class="text-center">${s.quantity}</td>
+                <td>${escapeHtml(s.createdBy || '')}</td>
             </tr>
         `).join('');
     }
 
-    // ============================================
-    // МОДАЛЬНОЕ ОКНО
-    // ============================================
+    function showEmptyDetails() {
+        if (elements.detailsEmpty) elements.detailsEmpty.style.display = 'flex';
+        if (elements.detailsContent) elements.detailsContent.style.display = 'none';
+    }
+
+    // ============================================================
+    // УПРАВЛЕНИЕ СТАТУСАМИ
+    // ============================================================
+    async function startOrder(orderId) {
+        if (!confirm('Начать сборку заказа?')) return;
+
+        try {
+            const response = await fetch(`/api/transfer-orders/${orderId}/start`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.message || 'Ошибка начала сборки');
+            }
+
+            // Обновляем данные
+            await loadOrders();
+            if (state.orders.length > 0) {
+                await selectOrder(state.orders[0].transferOrderId);
+            }
+
+        } catch (error) {
+            console.error('Ошибка начала сборки:', error);
+            alert('Ошибка: ' + error.message);
+        }
+    }
+
+    // ============================================================
+    // МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ОТГРУЗКИ
+    // ============================================================
     function openModal() {
-        if (!selectedOrder || selectedOrder.completed) {
-            alert('Заказ завершён, нельзя добавить отгрузку');
+        if (!state.currentOrder || state.currentOrder.status !== 'InProgress') {
+            alert('Заказ не в статусе "В работе"');
             return;
         }
 
-        modalError.style.display = 'none';
-        inputQty.value = 1;
-        inputWho.value = '';
+        elements.modalError.style.display = 'none';
+        elements.inputMaterialCode.value = '';
+        elements.inputQty.value = 1;
+        elements.inputWho.value = '';
+        elements.inputRemaining.textContent = '';
 
-        // Заполняем выбор материалов
-        updateMaterialSelect(selectedOrder.details || []);
-
-        // Определяем режим ввода
-        const items = selectedOrder.details || [];
-        if (items.length > 1) {
-            inputMaterialSelect.style.display = 'block';
-            inputMaterialCode.style.display = 'none';
-            if (inputMaterialSelect.options.length > 0) {
-                inputMaterialSelect.selectedIndex = 0;
-            }
-        } else if (items.length === 1) {
-            inputMaterialSelect.style.display = 'none';
-            inputMaterialCode.style.display = 'block';
-            inputMaterialCode.value = items[0].materialCode || '';
-        } else {
-            inputMaterialSelect.style.display = 'none';
-            inputMaterialCode.style.display = 'block';
-            inputMaterialCode.value = '';
+        // Очищаем подсказки
+        if (elements.inputMaterialSuggestions) {
+            elements.inputMaterialSuggestions.innerHTML = '';
+            elements.inputMaterialSuggestions.style.display = 'none';
         }
 
-        modalEl.style.display = 'flex';
-        modalOpen = true;
+        elements.modal.style.display = 'flex';
+        elements.modalOpen = true;
 
-        // Фокус на первое поле
+        // Фокус на поле кода материала
         setTimeout(() => {
-            if (inputMaterialSelect.style.display !== 'none') {
-                inputMaterialSelect.focus();
-            } else {
-                inputMaterialCode.focus();
-            }
+            elements.inputMaterialCode.focus();
         }, 200);
     }
 
     function closeModal() {
-        modalEl.style.display = 'none';
-        modalOpen = false;
-        modalError.style.display = 'none';
+        elements.modal.style.display = 'none';
+        elements.modalError.style.display = 'none';
     }
 
-    function updateMaterialSelect(items) {
-        inputMaterialSelect.innerHTML = '';
-        items.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.materialId;
-            const shipped = item.shippedQuantity || 0;
-            const remaining = item.quantity - shipped;
-            opt.textContent = `${item.materialCode} — осталось ${remaining} шт. (план ${item.quantity})`;
-            opt.disabled = remaining <= 0;
-            inputMaterialSelect.appendChild(opt);
-        });
+    // ============================================================
+    // ПОИСК МАТЕРИАЛА С ПОДСКАЗКАМИ
+    // ============================================================
+    function showMaterialSuggestions(query) {
+        const suggestionsEl = elements.inputMaterialSuggestions;
+        if (!suggestionsEl) return;
 
-        // Если есть только один материал, скрываем селект
-        if (items.length <= 1) {
-            inputMaterialSelect.style.display = 'none';
-            inputMaterialCode.style.display = 'block';
-            if (items.length === 1) {
-                inputMaterialCode.value = items[0].materialCode || '';
-            }
-        } else {
-            inputMaterialSelect.style.display = 'block';
-            inputMaterialCode.style.display = 'none';
+        if (!query || query.length < 2) {
+            suggestionsEl.style.display = 'none';
+            return;
         }
+
+        const orderMaterials = state.currentOrder?.details || [];
+        const matched = orderMaterials.filter(d =>
+            d.materialCode.toLowerCase().includes(query.toLowerCase()) ||
+            (d.description && d.description.toLowerCase().includes(query.toLowerCase()))
+        );
+
+        if (matched.length === 0) {
+            suggestionsEl.innerHTML = '<div class="suggestion-item text-muted">Материал не найден в заказе</div>';
+            suggestionsEl.style.display = 'block';
+            return;
+        }
+
+        suggestionsEl.innerHTML = matched.map(d => `
+            <div class="suggestion-item" data-material-id="${d.materialId}" data-material-code="${d.materialCode}" data-remaining="${d.remaining || 0}">
+                <strong>${escapeHtml(d.materialCode)}</strong>
+                <span class="text-muted">${escapeHtml(d.description || '')}</span>
+                <span class="badge bg-secondary">осталось ${d.remaining || 0} шт.</span>
+            </div>
+        `).join('');
+
+        suggestionsEl.style.display = 'block';
+
+        // Клик по подсказке
+        suggestionsEl.querySelectorAll('.suggestion-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const code = el.dataset.materialCode;
+                const remaining = parseInt(el.dataset.remaining);
+                elements.inputMaterialCode.value = code;
+                elements.inputRemaining.textContent = `Остаток: ${remaining} шт.`;
+                suggestionsEl.style.display = 'none';
+                elements.inputQty.focus();
+            });
+        });
     }
 
-    // ============================================
+    // ============================================================
     // СОХРАНЕНИЕ ОТГРУЗКИ
-    // ============================================
+    // ============================================================
     async function onSaveShipment() {
-        modalError.style.display = 'none';
+        elements.modalError.style.display = 'none';
 
-        const qty = parseInt(inputQty.value, 10);
-        const who = inputWho.value.trim() || 'Неизвестно';
+        const materialCode = elements.inputMaterialCode.value.trim();
+        const qty = parseInt(elements.inputQty.value);
+        const who = elements.inputWho.value.trim() || 'Неизвестно';
 
-        if (!selectedOrder || !selectedOrder.transferOrderId) {
-            showModalError('Не выбран заказ');
+        if (!materialCode) {
+            showModalError('Введите код материала');
+            return;
+        }
+
+        // Проверяем, что материал есть в заказе
+        const orderItem = state.currentOrder?.details?.find(d =>
+            d.materialCode.toLowerCase() === materialCode.toLowerCase()
+        );
+
+        if (!orderItem) {
+            showModalError('Материал не найден в заказе');
             return;
         }
 
@@ -447,48 +542,20 @@ console.log('transfers.js loaded');
             return;
         }
 
-        // Определяем материал
-        let materialId = null;
-        let materialCode = null;
-
-        if (inputMaterialSelect.style.display !== 'none') {
-            materialId = parseInt(inputMaterialSelect.value, 10);
-        } else {
-            materialCode = inputMaterialCode.value.trim();
-            // Ищем материал по коду
-            const item = (selectedOrder.details || []).find(d =>
-                d.materialCode && d.materialCode.toLowerCase() === materialCode.toLowerCase()
-            );
-            if (item) {
-                materialId = item.materialId;
-            }
-        }
-
-        if (!materialId) {
-            showModalError('Материал не найден');
+        const remaining = orderItem.remaining || 0;
+        if (qty > remaining) {
+            showModalError(`Нельзя отгрузить больше ${remaining} шт. (остаток)`);
             return;
         }
 
-        // Проверяем, что не превышаем остаток
-        const item = (selectedOrder.details || []).find(d => d.materialId === materialId);
-        if (item) {
-            const shipped = item.shippedQuantity || 0;
-            const remaining = item.quantity - shipped;
-            if (qty > remaining) {
-                showModalError(`Нельзя отгрузить больше ${remaining} шт. (остаток)`);
-                return;
-            }
-        }
-
         const payload = {
-            transferOrderId: selectedOrder.transferOrderId,
-            materialId: materialId,
+            materialCode: materialCode,
             quantity: qty,
             createdBy: who
         };
 
         try {
-            const response = await fetch('/api/transfer-orders/shipments', {
+            const response = await fetch(`/api/transfer-shipments?orderId=${state.currentOrder.transferOrderId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -502,10 +569,9 @@ console.log('transfers.js loaded');
             // Успешно - обновляем данные
             closeModal();
             await loadOrders();
-            if (selectedOrder) {
-                await selectOrder(selectedOrder.transferOrderId);
+            if (state.selectedOrderId) {
+                await selectOrder(state.selectedOrderId);
             }
-            alert('Отгрузка добавлена');
 
         } catch (error) {
             console.error('Ошибка:', error);
@@ -514,78 +580,98 @@ console.log('transfers.js loaded');
     }
 
     function showModalError(message) {
-        modalError.textContent = message;
-        modalError.style.display = 'block';
+        elements.modalError.textContent = message;
+        elements.modalError.style.display = 'block';
     }
 
-    // ============================================
-    // ЗАВЕРШЕНИЕ ЗАКАЗА
-    // ============================================
-    async function onCompleteOrder() {
-        if (!selectedOrder) return;
-        if (selectedOrder.completed) {
-            alert('Заказ уже завершён');
-            return;
-        }
+    // ============================================================
+    // СОБЫТИЯ
+    // ============================================================
+    function bindEvents() {
+        // Обновить
+        elements.btnRefresh?.addEventListener('click', loadOrders);
 
-        // Проверяем, все ли материалы отгружены
-        const allCompleted = (selectedOrder.details || []).every(d =>
-            (d.shippedQuantity || 0) >= d.quantity
-        );
+        // Применить фильтры
+        elements.filterApply?.addEventListener('click', () => {
+            state.filter.status = elements.filterStatus?.value || '';
+            state.filter.fromWarehouse = elements.filterFromWarehouse?.value || '';
+            state.filter.toWarehouse = elements.filterToWarehouse?.value || '';
+            state.filter.fromDate = elements.filterFromDate?.value || '';
+            state.filter.toDate = elements.filterToDate?.value || '';
+            loadOrders();
+        });
 
-        if (!allCompleted) {
-            alert('Не все материалы отгружены полностью');
-            return;
-        }
-
-        if (!confirm('Завершить заказ?')) return;
-
-        try {
-            const response = await fetch(`/api/transfer-orders/${selectedOrder.transferOrderId}/complete`, {
-                method: 'PUT'
-            });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.message || 'Ошибка завершения');
+        // Начать сборку (кнопка в деталях)
+        elements.btnStartOrder?.addEventListener('click', () => {
+            if (state.selectedOrderId) {
+                startOrder(state.selectedOrderId);
             }
+        });
 
-            await loadOrders();
-            if (selectedOrder) {
-                await selectOrder(selectedOrder.transferOrderId);
+        // Добавить отгрузку
+        elements.btnAddShipment?.addEventListener('click', openModal);
+
+        // Модальное окно
+        elements.modalClose?.addEventListener('click', closeModal);
+        elements.modalCancel?.addEventListener('click', closeModal);
+        elements.modalSave?.addEventListener('click', onSaveShipment);
+
+        // Закрытие по клику вне модалки
+        elements.modal?.addEventListener('click', (e) => {
+            if (e.target === elements.modal) closeModal();
+        });
+
+        // Поиск материала с подсказками
+        elements.inputMaterialCode?.addEventListener('input', (e) => {
+            showMaterialSuggestions(e.target.value);
+        });
+
+        elements.inputMaterialCode?.addEventListener('blur', () => {
+            // Скрываем подсказки с задержкой
+            setTimeout(() => {
+                if (elements.inputMaterialSuggestions) {
+                    elements.inputMaterialSuggestions.style.display = 'none';
+                }
+            }, 200);
+        });
+
+        elements.inputMaterialCode?.addEventListener('focus', () => {
+            if (elements.inputMaterialCode.value.length >= 2) {
+                showMaterialSuggestions(elements.inputMaterialCode.value);
             }
-            alert('Заказ завершён');
+        });
 
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Ошибка завершения заказа: ' + error.message);
-        }
+        // Enter в полях
+        elements.inputQty?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') onSaveShipment();
+        });
+        elements.inputWho?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') onSaveShipment();
+        });
     }
 
-    // ============================================
-    // СОЗДАНИЕ ЗАКАЗА
-    // ============================================
-    function onCreateOrder() {
-        // Перенаправляем на страницу создания через модуль
-        window.location.href = '/transfers/new';
-    }
-
-    // ============================================
+    // ============================================================
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-    // ============================================
-    function showEmptyDetails() {
-        detailsEmpty.style.display = 'flex';
-        detailsContent.style.display = 'none';
+    // ============================================================
+    function getStatusLabel(status) {
+        const labels = {
+            'Draft': 'Создан',
+            'InProgress': 'В работе',
+            'Ready': 'Готов',
+            'Completed': 'Завершен'
+        };
+        return labels[status] || status;
     }
 
-    function formatDate(s) {
-        if (!s) return '';
-        const d = new Date(s);
-        if (isNaN(d.getTime())) return String(s);
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    function getStatusColor(status) {
+        const colors = {
+            'Draft': '#6c757d',
+            'InProgress': '#ffc107',
+            'Ready': '#17a2b8',
+            'Completed': '#28a745'
+        };
+        return colors[status] || '#6c757d';
     }
-
-    function pad(n) { return n < 10 ? '0' + n : n; }
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -594,9 +680,9 @@ console.log('transfers.js loaded');
         });
     }
 
-    // ============================================
+    // ============================================================
     // ЗАПУСК
-    // ============================================
+    // ============================================================
     document.addEventListener('DOMContentLoaded', init);
 
 })();

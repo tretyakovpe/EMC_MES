@@ -19,36 +19,60 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
 
         .portal-container {
             text-align: center;
             padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo img {
+            max-height: 60px;
         }
 
         h1 {
             color: #cc0000;
             margin-bottom: 40px;
-            font-size: 32px;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 2px;
         }
 
+        h1 span {
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           ОСНОВНАЯ СЕТКА
+           ============================================================ */
         .portal-grid {
-            display: flex;
-            gap: 30px;
-            flex-wrap: wrap;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
         }
 
         .portal-card {
             background: #e8e8e8;
             border-radius: 12px;
-            padding: 30px 40px;
+            padding: 24px 20px;
             text-align: center;
             text-decoration: none;
             color: #333;
             transition: all 0.3s ease;
             border: 2px solid #cc0000;
-            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
         }
 
         .portal-card:hover {
@@ -58,12 +82,12 @@
         }
 
         .portal-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
+            font-size: 40px;
+            margin-bottom: 10px;
         }
 
         .portal-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             color: #cc0000;
         }
@@ -71,36 +95,226 @@
         .portal-desc {
             font-size: 12px;
             color: #666;
-            margin-top: 8px;
+            margin-top: 6px;
+        }
+
+        /* ============================================================
+           КАРТОЧКА ЛОГИСТИКИ С ПОДМЕНЮ
+           ============================================================ */
+        .logistics-wrapper {
+            grid-column: 1 / -1;
+            background: #d8d8d8;
+            border-radius: 12px;
+            border: 2px solid #cc0000;
+            padding: 16px 20px 20px 20px;
+            transition: all 0.3s ease;
+        }
+
+        .logistics-wrapper:hover {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .logistics-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(204, 0, 0, 0.2);
+        }
+
+        .logistics-header .portal-icon {
+            font-size: 32px;
+            margin-bottom: 0;
+        }
+
+        .logistics-header .portal-title {
+            font-size: 20px;
+        }
+
+        .logistics-header .portal-desc {
+            font-size: 13px;
+            color: #666;
+            margin-top: 0;
+            margin-left: 8px;
+        }
+
+        .logistics-submenu {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .logistics-submenu .sub-card {
+            background: #e8e8e8;
+            border-radius: 8px;
+            padding: 16px 12px;
+            text-align: center;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s ease;
+            border: 1px solid #bbb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+        }
+
+        .logistics-submenu .sub-card:hover {
+            transform: translateY(-3px);
+            background: #f0f0f0;
+            border-color: #cc0000;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .logistics-submenu .sub-card .sub-icon {
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+
+        .logistics-submenu .sub-card .sub-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cc0000;
+        }
+
+        .logistics-submenu .sub-card .sub-desc {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        /* ============================================================
+           АДАПТИВНОСТЬ
+           ============================================================ */
+        @media (max-width: 768px) {
+            .portal-container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 22px;
+                margin-bottom: 24px;
+            }
+
+            .portal-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+
+            .logistics-wrapper {
+                grid-column: 1 / -1;
+            }
+
+            .logistics-submenu {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .portal-card {
+                min-height: 100px;
+                padding: 16px;
+            }
+
+            .portal-card .portal-icon {
+                font-size: 32px;
+            }
+
+            .portal-card .portal-title {
+                font-size: 15px;
+            }
+
+            .logistics-header {
+                flex-wrap: wrap;
+            }
+
+            .logistics-header .portal-desc {
+                width: 100%;
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .portal-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .logistics-submenu {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .logistics-submenu .sub-card {
+                min-height: 70px;
+                padding: 12px 8px;
+            }
+
+            .logistics-submenu .sub-card .sub-icon {
+                font-size: 22px;
+            }
+
+            .logistics-submenu .sub-card .sub-title {
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 
 <body>
     <div class="portal-container">
-        <img src="/static/images/logo.png">
-        <h1> MES Система</h1>
+        <div class="logo">
+            <img src="/static/images/logo.png" alt="MES Logo">
+            <h1>MES Система</h1>
+        </div>
         <div class="portal-grid">
+            <!-- Производство -->
             <a href="/production" class="portal-card">
                 <div class="portal-icon">🏭</div>
                 <div class="portal-title">Производство</div>
                 <div class="portal-desc">Цех, Статистика</div>
             </a>
-            <a href="/logistics" class="portal-card">
-                <div class="portal-icon">🚚</div>
-                <div class="portal-title">Логистика</div>
-                <div class="portal-desc">Планы, Отгрузки</div>
+            <a href="/quality" class="portal-card">
+                <div class="portal-icon">🔬</div>
+                <div class="portal-title">Качество</div>
+                <div class="portal-desc">Контроль качества</div>
             </a>
-            <a href="/warehouses" class="portal-card">
-                <div class="portal-icon">🏢</div>
-                <div class="portal-title">Склады</div>
-                <div class="portal-desc">Управление складами</div>
-            </a>
-            <a href="/materials" class="portal-card">
-                <div class="portal-icon">📦</div>
-                <div class="portal-title">Материалы</div>
-                <div class="portal-desc">Управление материалами</div>
-            </a>
+            <!-- Логистика (с подменю) -->
+            <div class="logistics-wrapper">
+                <div class="logistics-header">
+                    <div class="portal-icon">🚚</div>
+                    <div class="portal-title">Логистика</div>
+                    <div class="portal-desc">Управление поставками и перемещениями</div>
+                </div>
+                <div class="logistics-submenu">
+                    <a href="/logistics" class="sub-card">
+                        <div class="sub-icon">📋</div>
+                        <div class="sub-title">Логистика</div>
+                        <div class="sub-desc">Управление логистикой</div>
+                    </a>
+                    <a href="/transfers" class="sub-card">
+                        <div class="sub-icon">📦</div>
+                        <div class="sub-title">Кладовщик</div>
+                        <div class="sub-desc">Сборка заказов</div>
+                    </a>
+                    <a href="/shipping-screen" class="sub-card">
+                        <div class="sub-icon">🚚</div>
+                        <div class="sub-title">Экран отгрузок</div>
+                        <div class="sub-desc">График отгрузки ГП</div>
+                    </a>
+                    <a href="/warehouses" class="sub-card">
+                        <div class="sub-icon">🏢</div>
+                        <div class="sub-title">Склады</div>
+                        <div class="sub-desc">Управление складами</div>
+                    </a>
+                    <a href="/materials" class="sub-card">
+                        <div class="sub-icon">📦</div>
+                        <div class="sub-title">Материалы</div>
+                        <div class="sub-desc">Управление материалами</div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Качество (добавил для симметрии, можно убрать) -->
         </div>
     </div>
 </body>

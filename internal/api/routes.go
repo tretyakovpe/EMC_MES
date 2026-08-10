@@ -1,13 +1,12 @@
 package api
 
 import (
+	"EMC_MES/internal/events"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"EMC_MES/internal/events"
 )
 
 var globalHub *events.Hub
@@ -93,13 +92,14 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/statistics/boxes", handleGetBoxesStats)
 	mux.HandleFunc("/api/statistics/lines", handleGetLinesForFilter)
 
-	// ==================== ЗАКАЗЫ НА ПЕРЕМЕЩЕНИЕ (НОВЫЕ) ====================
+	// ==================== ЗАКАЗЫ НА ПЕРЕМЕЩЕНИЕ (НОВАЯ ВЕРСИЯ) ====================
+	// Основные маршруты
 	mux.HandleFunc("/api/transfer-orders", handleTransferOrders)
 	mux.HandleFunc("/api/transfer-orders/", handleTransferOrderByID)
 
-	// Перемещения — фактические отгрузки
+	// Отгрузки по заказам на перемещение
 	mux.HandleFunc("/api/transfer-shipments", handleTransferShipments)
-	mux.HandleFunc("/api/transfer-shipments/", handleTransferShipmentsByID)
+	mux.HandleFunc("/api/transfer-shipments/", handleTransferShipmentByID)
 
 	// Видео стрим
 	mux.HandleFunc("/api/video/stream", handleVideoStream)
@@ -271,32 +271,6 @@ func handleShipmentsByID(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-	}
-
-	http.NotFound(w, r)
-}
-
-// handleTransferShipmentsByID обрабатывает запросы к /api/transfer-shipments/{id}
-func handleTransferShipmentsByID(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/api/transfer-shipments/")
-
-	// /api/transfer-shipments/{id}/grouped
-	if strings.HasSuffix(path, "/grouped") {
-		handleGetTransferShipmentsGrouped(w, r)
-		return
-	}
-
-	// /api/transfer-shipments/{id} - получение или удаление
-	if len(path) > 0 && path != "" {
-		switch r.Method {
-		case http.MethodGet:
-			handleGetTransferShipments(w, r)
-		case http.MethodDelete:
-			handleDeleteTransferShipment(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-		return
 	}
 
 	http.NotFound(w, r)

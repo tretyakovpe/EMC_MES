@@ -1,358 +1,235 @@
-/* ============================================ */
-/* ПЕРЕМЕЩЕНИЯ - ОСНОВНЫЕ СТИЛИ                 */
-/* ============================================ */
+/* ================================================================
+   transfers.css - Стили для страниц управления перемещениями
+   Версия: 2.0
+   Используется: /logistics (логист) и /transfers (кладовщик)
+   ================================================================ */
 
-.transfers-container {
-    padding: 20px;
-    height: calc(100vh - 56px);
-    overflow-y: auto;
-    background: #c0c0c0;
+/* ============================================================
+   ОБЩИЕ СТИЛИ ДЛЯ МОДУЛЯ
+   ============================================================ */
+.transfers-module {
+    padding: 0;
 }
 
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.transfers-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e9ecef;
     margin-bottom: 16px;
-    padding: 12px 16px;
-    background: #d4d4d4;
-    border-radius: 8px;
 }
 
-.panel-header h3 {
-    margin: 0;
-    font-size: 18px;
-    color: #333;
-}
-
-.transfers-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    height: 100%;
-}
-
-.transfers-list-panel {
-    background: #e8e8e8;
-    border-radius: 8px;
-    padding: 16px;
-}
-
-.transfers-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+/* ============================================================
+   КАРТОЧКИ ЗАКАЗОВ
+   ============================================================ */
+.orders-list {
     max-height: 600px;
     overflow-y: auto;
-    align-content: start;
+    padding-right: 4px;
 }
 
-/* Карточка заказа - компактная */
+.orders-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.orders-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.orders-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.orders-list::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
 .transfer-card {
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 10px 12px;
-    transition: all 0.2s;
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: #fff;
 }
 
 .transfer-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #dee2e6;
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.transfer-card.completed {
-    opacity: 0.85;
-    background: #e8f5e9;
-    border-color: #a5d6a7;
+.transfer-card.selected {
+    border-color: #0d6efd;
+    background: #f0f7ff;
+    box-shadow: 0 2px 12px rgba(13, 110, 253, 0.15);
 }
 
-.transfer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #ddd;
+.transfer-card .card-body {
+    padding: 12px 16px;
 }
 
-.transfer-number {
-    font-weight: bold;
-    font-size: 14px;
-    color: #cc0000;
+.transfer-card .transfer-number {
+    font-weight: 600;
+    font-size: 1rem;
 }
 
-.transfer-status {
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: bold;
-    color: white;
-    white-space: nowrap;
+.transfer-card .transfer-route {
+    font-size: 0.85rem;
+    color: #6c757d;
 }
 
-.transfer-body {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+.transfer-card .transfer-summary {
+    font-size: 0.8rem;
+    color: #6c757d;
 }
 
-.transfer-route {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
+.transfer-card .transfer-date {
+    font-size: 0.75rem;
+    color: #adb5bd;
 }
 
-.transfer-arrow {
-    color: #999;
-    font-weight: bold;
+.transfer-card .badge {
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 500;
 }
 
-.transfer-materials {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.transfer-material-item {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    background: #f0f0f0;
-    padding: 2px 6px;
-    border-radius: 3px;
-}
-
-.transfer-material-item strong {
-    color: #333;
-    font-size: 12px;
-}
-
-.transfer-material-item span {
-    font-size: 11px;
-    color: #666;
-}
-
-.transfer-date {
-    font-size: 10px;
-    color: #888;
-    margin-top: 2px;
-}
-
-.transfer-actions-row {
-    display: flex;
-    gap: 4px;
-    padding-top: 6px;
-    border-top: 1px solid #ddd;
-    flex-wrap: wrap;
-}
-
-.transfer-actions-row button {
-    padding: 2px 8px;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 11px;
-    transition: all 0.2s;
-}
-
-.transfer-actions-row button:hover {
-    transform: translateY(-1px);
-}
-
-.edit-transfer-btn {
-    background: #ffc107;
-    color: #000;
-}
-
-.delete-transfer-btn {
-    background: #dc3545;
-    color: #fff;
-}
-
-.complete-transfer-btn {
-    background: #28a745;
-    color: #fff;
-}
-
-/* Панель редактора */
-.transfer-editor-panel {
-    background: #e8e8e8;
-    border-radius: 8px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.transfer-route-input {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.form-group label {
-    font-size: 12px;
-    font-weight: bold;
-    color: #333;
-}
-
-.form-input {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #999;
+.transfer-card .progress {
+    height: 4px;
+    background: #e9ecef;
     border-radius: 4px;
-    background: #f5f5f5;
-    font-size: 14px;
 }
 
-.form-input:focus {
-    outline: none;
-    border-color: #cc0000;
+.transfer-card .progress .progress-bar {
+    border-radius: 4px;
+    transition: width 0.5s ease;
 }
 
-.transfer-items-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 300px;
-    overflow-y: auto;
-    min-height: 60px;
+/* ============================================================
+   ПАНЕЛЬ ДЕТАЛЕЙ ЗАКАЗА
+   ============================================================ */
+#details-panel {
+    min-height: 400px;
 }
 
-.empty-items {
-    text-align: center;
+#details-panel .card-body {
     padding: 20px;
-    color: #888;
-    font-size: 14px;
 }
 
-.transfer-item-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.details-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.details-header h4 {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.details-header .badge {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.details-header .btn-group {
+    gap: 4px;
+}
+
+.details-header .btn-group .btn {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+}
+
+/* ============================================================
+   ПРОГРЕСС-БАР
+   ============================================================ */
+.progress-container {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+.progress-container .progress {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+}
+
+.progress-container .progress .progress-bar {
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+/* ============================================================
+   СЕКЦИИ ДЕТАЛЕЙ
+   ============================================================ */
+.details-section {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.details-section .section-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+.details-section .table {
+    margin-bottom: 0;
+}
+
+.details-section .table th {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #6c757d;
+    border-bottom: 2px solid #dee2e6;
+    padding: 6px 8px;
+}
+
+.details-section .table td {
+    padding: 6px 8px;
+    vertical-align: middle;
+    font-size: 0.85rem;
+}
+
+.details-section .table .text-muted {
+    color: #6c757d;
+}
+
+/* ============================================================
+   ФИЛЬТРЫ
+   ============================================================ */
+.filters-bar {
+    background: #f8f9fa;
     padding: 8px 12px;
-    background: #f5f5f5;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 12px;
 }
 
-.item-info {
-    display: flex;
-    gap: 12px;
-    align-items: center;
+.filters-bar .form-select,
+.filters-bar .form-control {
+    font-size: 0.8rem;
+    border-radius: 6px;
 }
 
-.item-info strong {
-    color: #333;
-    font-size: 14px;
+.filters-bar .btn {
+    font-size: 0.8rem;
+    border-radius: 6px;
 }
 
-.item-info span {
-    color: #666;
-    font-size: 13px;
-}
-
-.item-actions {
-    display: flex;
-    gap: 6px;
-}
-
-.item-delete {
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    padding: 3px 8px;
-    cursor: pointer;
-    font-size: 13px;
-}
-
-.item-delete:hover {
-    background: #c82333;
-}
-
-.transfer-actions {
-    display: flex;
-    gap: 10px;
-    padding-top: 12px;
-    border-top: 1px solid #ddd;
-}
-
-/* Кнопки */
-.btn-primary {
-    background: #cc0000;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.btn-primary:hover {
-    background: #a30000;
-    transform: translateY(-1px);
-}
-
-.btn-secondary {
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-    background: #5a6268;
-    transform: translateY(-1px);
-}
-
-.btn-success {
-    background: #28a745;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.btn-success:hover {
-    background: #1e7e34;
-    transform: translateY(-1px);
-}
-
-.btn-close {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: #333;
-    padding: 0 8px;
-}
-
-.btn-close:hover {
-    color: #cc0000;
-}
-
-/* Панель выбора материалов */
-.materials-picker {
+/* ============================================================
+   МОДАЛЬНОЕ ОКНО
+   ============================================================ */
+.modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -360,145 +237,287 @@
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
-    align-items: center;
     justify-content: center;
-    z-index: 1000;
+    align-items: center;
+    z-index: 1050;
+    animation: modalFadeIn 0.2s ease;
 }
 
-.picker-content {
-    background: #d4d4d4;
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-overlay .modal-content {
+    background: #fff;
     border-radius: 12px;
-    width: 480px;
-    max-width: 90%;
-    max-height: 80%;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-.picker-header {
+.modal-overlay .modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #e9ecef;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
-    background: #cc0000;
-    color: white;
 }
 
-.picker-header h4 {
+.modal-overlay .modal-header .modal-title {
+    font-weight: 600;
+    font-size: 1.1rem;
     margin: 0;
-    font-size: 18px;
 }
 
-.close-picker-btn {
+.modal-overlay .modal-header .modal-close {
     background: none;
     border: none;
-    color: white;
-    font-size: 24px;
+    font-size: 1.5rem;
+    color: #6c757d;
     cursor: pointer;
+    padding: 0;
+    line-height: 1;
 }
 
-.materials-list {
-    padding: 16px;
-    max-height: 400px;
-    overflow-y: auto;
+.modal-overlay .modal-header .modal-close:hover {
+    color: #212529;
+}
+
+.modal-overlay .modal-body {
+    padding: 20px 24px;
+}
+
+.modal-overlay .modal-footer {
+    padding: 12px 24px;
+    border-top: 1px solid #e9ecef;
     display: flex;
-    flex-direction: column;
+    justify-content: flex-end;
     gap: 8px;
 }
 
-.material-item {
+/* ============================================================
+   ПОДСКАЗКИ ПРИ ВВОДЕ МАТЕРИАЛА
+   ============================================================ */
+.suggestions-list {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    width: calc(100% - 2px);
+    z-index: 1060;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-top: 2px;
+}
+
+.suggestions-list .suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    background: #e8e8e8;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #f1f1f1;
 }
 
-.material-item:hover {
-    background: #f0f0f0;
+.suggestions-list .suggestion-item:hover {
+    background: #f0f7ff;
 }
 
-.material-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+.suggestions-list .suggestion-item:last-child {
+    border-bottom: none;
 }
 
-.material-info strong {
-    color: #333;
-    font-size: 13px;
+.suggestions-list .suggestion-item .badge {
+    font-size: 0.7rem;
+    font-weight: 400;
 }
 
-.material-info span {
-    color: #666;
-    font-size: 12px;
-}
-
-.add-material-btn {
-    background: #28a745;
-    color: white;
-    border: none;
-    padding: 4px 12px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-}
-
-.add-material-btn:hover {
-    background: #1e7e34;
-    transform: translateY(-1px);
-}
-
-/* Пустое состояние */
-.empty-state {
-    text-align: center;
-    padding: 40px;
-    color: #888;
-    font-size: 16px;
-}
-
-/* Адаптивность */
-@media (max-width: 1200px) {
-    .transfers-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 1024px) {
-    .transfers-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .transfer-route-input {
-        grid-template-columns: 1fr;
-    }
-
-    .transfers-grid {
-        grid-template-columns: repeat(2, 1fr);
+/* ============================================================
+   АДАПТИВНОСТЬ
+   ============================================================ */
+@media (max-width: 992px) {
+    .orders-list {
+        max-height: 300px;
     }
 }
 
 @media (max-width: 768px) {
-    .panel-header {
+    .transfers-header .d-flex {
         flex-direction: column;
-        gap: 12px;
-        text-align: center;
+        align-items: stretch;
+        gap: 8px;
     }
 
-    .transfers-grid {
-        grid-template-columns: 1fr;
+    .transfers-header .d-flex .btn {
+        width: 100%;
     }
 
-    .picker-content {
-        width: 95%;
+    .details-header .d-flex {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .details-header .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .details-header .btn-group .btn {
+        flex: 1;
+        min-width: 80px;
+    }
+
+    .modal-overlay .modal-content {
+        margin: 16px;
+        max-width: 100%;
+    }
+
+    .filters-bar .row {
+        gap: 4px;
+    }
+
+    .filters-bar .col-6,
+    .filters-bar .col-12 {
+        padding: 2px;
     }
 }
 
-@media (max-width: 480px) {
-    .transfers-grid {
-        grid-template-columns: 1fr;
+/* ============================================================
+   СОСТОЯНИЯ ЗАГРУЗКИ И ПУСТЫЕ СОСТОЯНИЯ
+   ============================================================ */
+.empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.empty-state h5 {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.empty-state p {
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.loading-state {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.loading-state .spinner {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e9ecef;
+    border-top: 3px solid #0d6efd;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
+}
+
+/* ============================================================
+   СТАТУСЫ
+   ============================================================ */
+.status-draft {
+    color: #6c757d;
+    background: #e9ecef;
+}
+
+.status-inprogress {
+    color: #856404;
+    background: #fff3cd;
+}
+
+.status-ready {
+    color: #0c5460;
+    background: #d1ecf1;
+}
+
+.status-completed {
+    color: #155724;
+    background: #d4edda;
+}
+
+/* ============================================================
+   ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ
+   ============================================================ */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.text-ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+    display: inline-block;
+}
+
+/* Стили для Bootstrap-оверрайдов */
+.table-sm> :not(caption)>*>* {
+    padding: 4px 8px;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.btn-sm {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+}
+
+/* ============================================================
+   КНОПКА ДОБАВЛЕНИЯ ОТГРУЗКИ В КАРТОЧКЕ
+   ============================================================ */
+.transfer-card .btn-start-order {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.transfer-card .btn-start-order:hover {
+    transform: scale(1.02);
+}
+
+/* ============================================================
+   ПРОГРЕСС В ТАБЛИЦЕ МАТЕРИАЛОВ
+   ============================================================ */
+.details-section .table .progress {
+    height: 6px;
+    width: 80px;
+    margin: 0 auto;
+    background: #e9ecef;
+    border-radius: 4px;
+}
+
+.details-section .table .progress .progress-bar {
+    border-radius: 4px;
+    transition: width 0.4s ease;
 }
