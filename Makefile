@@ -1,32 +1,31 @@
-.PHONY: help fmt lint check-secrets lint-all test
+.PHONY: win lin
 
-help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Available targets:'
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+BINARY=emc_mes.exe
+SMB_PATH=/home/Office/090_IT/EMC_MES/
+WEB_DIR=web
 
-fmt: ## Format Go code
-	@echo "Formatting Go code..."
-	@gofumpt -w .
-	@goimports -w .
-	@echo "✅ Code formatted!"
+# Коды для цветного вывода в терминал РОСА Линукс
+GREEN=✅
+RED=🛑
 
-lint: ## Run golangci-lint
-	@echo "Running golangci-lint..."
-	@golangci-lint run ./...
-	@echo "✅ Go linting passed!"
+# 1. Отслеживание изменений внутри папки web. 
+# Если любой файл внутри папки изменился, touch обновит дату самой папки.
+$(WEB_DIR): $(shell find $(WEB_DIR) -type f 2>/dev/null)
+	@touch $(WEB_DIR)
 
-check-secrets: ## Check for secrets in staged files
-	@echo "Checking for secrets..."
-	@bash scripts/check-secrets.sh
+win: $(WEB_DIR) ## Compilation for Windows
+	@echo 'Компиляция для Windows...'
+	@if GOOS=windows GOARCH=amd64 go build -o $(BINARY) ./cmd/server/main.go; then \
+		echo "$(GREEN)  Компиляция успешна$(NC)"; \
+	else \
+		echo "$(RED)  Ошибка компиляции$(NC)"; \
+		exit 1; \
+	fi
 
-lint-all: fmt lint ## Run all linting (format + golangci-lint)
-	@echo "✅ All linting passed!"
-
-test: ## Run tests
-	@echo "Running tests..."
-	@go test -v ./...
-
-pre-commit: lint-all check-secrets test ## Run all checks before committing (includes secrets scan)
-	@echo "✅ All pre-commit checks passed!"
+	@echo 'Копирование на сетевой диск...'
+	@if cp -rf $(WEB_DIR) $(BINARY) $(SMB_PATH); then \
+		echo "$(GREEN)  Файлы успешно скопированы"; \
+	else \
+		echo "$(RED)  Ошибка при копировании на SMB-шару"; \
+		exit 1; \
+	fi
